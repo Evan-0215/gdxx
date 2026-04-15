@@ -1,0 +1,3412 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>玩具厂订单管理系统</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary: #EC4899;
+            --primary-light: #F9A8D4;
+            --primary-dark: #DB2777;
+            --bg-main: #FFF5F7;
+            --bg-card: #FFFFFF;
+            --bg-card-hover: #FFF0F3;
+            --text-primary: #4A4A4A;
+            --text-secondary: #9CA3AF;
+            --status-todo: #f541cebd;
+            --status-progress: #FBBF24;
+            --status-done: #34D399;
+            --status-overdue: #F87171;
+            --border-color: #FECDD3;
+        }
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background: var(--bg-main);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+        body.locked { overflow: hidden; }
+        
+        /* 登录遮罩 */
+        .login-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 99999;
+        }
+        .login-overlay.hidden { display: none; }
+        .login-box {
+            background: white;
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            text-align: center;
+            max-width: 360px;
+            width: 90%;
+        }
+        .login-box h2 {
+            margin-bottom: 8px;
+            color: var(--text-primary);
+        }
+        .login-box p {
+            color: var(--text-secondary);
+            margin-bottom: 24px;
+            font-size: 14px;
+        }
+        .login-box input {
+            width: 100%;
+            padding: 14px 16px;
+            border: 2px solid var(--border-color);
+            border-radius: 10px;
+            font-size: 16px;
+            text-align: center;
+            margin-bottom: 16px;
+            transition: border-color 0.2s;
+        }
+        .login-box input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+        .login-box button {
+            width: 100%;
+            padding: 14px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .login-box button:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+        }
+        .login-error {
+            color: var(--status-overdue);
+            font-size: 13px;
+            margin-top: -8px;
+            margin-bottom: 12px;
+            display: none;
+        }
+        
+        .container { max-width: 1600px; margin: 0 auto; padding: 24px; }
+
+        /* Header */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 32px;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+        .logo { font-size: 24px; font-weight: 700; display: flex; align-items: center; gap: 12px; }
+        .logo-icon { font-size: 32px; }
+
+        /* Tab Navigation */
+        .main-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 24px;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 0;
+        }
+        .main-tab {
+            padding: 12px 24px;
+            cursor: pointer;
+            color: var(--text-secondary);
+            font-size: 15px;
+            font-weight: 500;
+            border-bottom: 3px solid transparent;
+            margin-bottom: -2px;
+            transition: all 0.2s;
+            border-radius: 8px 8px 0 0;
+        }
+        .main-tab:hover { color: var(--primary); background: var(--bg-card-hover); }
+        .main-tab.active { color: var(--primary); border-bottom-color: var(--primary); background: var(--bg-card); }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* Inventory Styles */
+        .inventory-toolbar {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .inventory-search {
+            flex: 1;
+            min-width: 250px;
+        }
+        .inventory-search input {
+            width: 100%;
+            padding: 10px 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 14px;
+            background: var(--bg-card);
+        }
+        .inventory-search input:focus { outline: none; border-color: var(--primary); }
+        .inventory-table-container {
+            background: var(--bg-card);
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+        }
+        .inventory-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .inventory-table th {
+            background: var(--bg-main);
+            padding: 14px 12px;
+            text-align: left;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            border-bottom: 1px solid var(--border-color);
+            position: sticky;
+            top: 0;
+        }
+        .inventory-table td {
+            padding: 12px;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 14px;
+        }
+        .inventory-table tr:hover { background: var(--bg-card-hover); }
+        .inventory-table tr:last-child td { border-bottom: none; }
+        .inventory-stock {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 600;
+        }
+        .inventory-stock.low { color: var(--status-overdue); }
+        .inventory-stock.medium { color: var(--status-progress); }
+        .inventory-stock.high { color: var(--status-done); }
+        .inventory-empty {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-secondary);
+        }
+        .inventory-empty-icon { font-size: 48px; margin-bottom: 16px; }
+        .inventory-stats {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .inventory-stat {
+            background: var(--bg-card);
+            padding: 16px 24px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .inventory-stat-icon { font-size: 24px; }
+        .inventory-stat-info .label { font-size: 12px; color: var(--text-secondary); }
+        .inventory-stat-info .value { font-size: 20px; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+        .inventory-warning { background: #FEF3C7; }
+        .inventory-warning .inventory-stat-info .value { color: var(--status-progress); }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-dark); transform: translateY(-2px); }
+        .btn-secondary { background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--border-color); }
+        .btn-secondary:hover { background: var(--bg-card-hover); }
+        .btn-sm { padding: 6px 12px; font-size: 12px; }
+        .btn-danger { background: var(--status-overdue); color: white; }
+
+        /* Stats Row with Actions */
+        .stats-row-wrapper {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+
+        /* Stats */
+        .stats-row {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .stat-pill {
+            background: var(--bg-card);
+            padding: 12px 20px;
+            border-radius: 30px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border: 1px solid var(--border-color);
+        }
+        .stat-pill .num {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 18px;
+            font-weight: 700;
+        }
+        .stat-pill.total .num { color: var(--primary); }
+        .stat-pill.progress .num { color: var(--status-progress); }
+        .stat-pill.done .num { color: var(--status-done); }
+        .stat-pill.overdue .num { color: var(--status-overdue); }
+
+        /* Stats Actions */
+        .stats-actions {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        /* Filters */
+        .filters {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+        .search-box {
+            flex: 1;
+            min-width: 250px;
+            position: relative;
+        }
+        .search-box input {
+            width: 100%;
+            padding: 12px 16px 12px 44px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 14px;
+        }
+        .search-box input:focus { outline: none; border-color: var(--primary); }
+        .search-box::before {
+            content: "🔍";
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+        .filter-select {
+            padding: 12px 16px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 14px;
+            cursor: pointer;
+            min-width: 140px;
+        }
+        .filter-select:focus { outline: none; border-color: var(--primary); }
+
+        /* Order Cards Grid */
+        .orders-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 16px;
+        }
+
+        .order-card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+        .order-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+            border-color: var(--primary);
+        }
+        .order-card.overdue { border-left: 4px solid var(--status-overdue); }
+        .order-card.done-order { opacity: 0.5; }
+
+        .order-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .order-card-badges {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        .days-badge {
+            font-size: 11px;
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-weight: 500;
+        }
+        .days-badge.safe { background: var(--status-done); color: white; }
+        .days-badge.warning { background: var(--status-progress); color: #000; }
+        .days-badge.danger { background: var(--status-overdue); color: white; }
+        .order-id {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        .overall-progress {
+            font-size: 12px;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-weight: 500;
+        }
+        .progress-low { background: var(--status-todo); color: white; }
+        .progress-mid { background: var(--status-progress); color: #000; }
+        .progress-high { background: var(--status-done); color: white; }
+
+        .order-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        .order-customer {
+            color: var(--text-secondary);
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+        .order-meta {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 16px;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+        .order-meta span { color: var(--text-primary); }
+
+        /* Progress Bar */
+        .progress-bar-container {
+            background: var(--border-color);
+            border-radius: 8px;
+            height: 8px;
+            overflow: hidden;
+            margin-bottom: 12px;
+        }
+        .progress-bar {
+            height: 100%;
+            border-radius: 8px;
+            transition: width 0.3s ease;
+        }
+        .progress-bar.low { background: var(--status-todo); }
+        .progress-bar.mid { background: var(--status-progress); }
+        .progress-bar.high { background: var(--status-done); }
+
+        /* Mini Task Preview */
+        .mini-tasks {
+            display: flex;
+            gap: 4px;
+            flex-wrap: wrap;
+        }
+        .mini-task-label {
+            margin-top: 12px;
+        }
+        .section-badges-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 6px;
+        }
+        .section-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            border-radius: 16px;
+            background: var(--bg-main);
+            font-size: 12px;
+            white-space: nowrap;
+        }
+        .section-badge.done { background: rgba(52, 211, 153, 0.15); color: #059669; border: 1px solid rgba(52, 211, 153, 0.3); }
+        .section-badge.progress { background: rgba(251, 191, 36, 0.15); color: #D97706; border: 1px solid rgba(251, 191, 36, 0.3); }
+        .section-badge.todo { background: var(--bg-main); color: var(--text-secondary); border: 1px solid var(--border-color); }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 80px 20px;
+            color: var(--text-secondary);
+        }
+        .empty-state-icon { font-size: 80px; margin-bottom: 20px; }
+        .empty-state h3 { font-size: 24px; margin-bottom: 8px; color: var(--text-primary); }
+
+        /* Detail Panel (Slide from right) */
+        .detail-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.6);
+            z-index: 100;
+        }
+        .detail-overlay.active { display: block; }
+
+        .detail-panel {
+            position: fixed;
+            top: 0;
+            right: -600px;
+            width: 100%;
+            max-width: 580px;
+            height: 100vh;
+            background: var(--bg-card);
+            border-left: 1px solid var(--border-color);
+            z-index: 101;
+            transition: right 0.3s ease;
+            overflow-y: auto;
+        }
+        .detail-panel.active { right: 0; }
+
+        .detail-header {
+            padding: 24px;
+            border-bottom: 1px solid var(--border-color);
+            position: sticky;
+            top: 0;
+            background: var(--bg-card);
+            z-index: 10;
+        }
+        .detail-header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 16px;
+        }
+        .detail-close {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 28px;
+            cursor: pointer;
+            line-height: 1;
+        }
+        .detail-close:hover { color: var(--text-primary); }
+
+        .detail-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            font-size: 14px;
+        }
+        .detail-info-item label {
+            color: var(--text-secondary);
+            display: block;
+            font-size: 12px;
+        }
+        .detail-info-item span {
+            font-weight: 500;
+        }
+
+        .detail-body { padding: 24px; }
+        .detail-footer {
+            padding: 16px 24px;
+            border-top: 1px solid var(--border-color);
+            position: sticky;
+            bottom: 0;
+            background: var(--bg-card);
+        }
+
+        /* Task Sections */
+        .task-section {
+            background: var(--bg-card);
+            border-radius: 12px;
+            margin-bottom: 16px;
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+        }
+        .task-section-header {
+            padding: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .task-section-header:hover { background: var(--bg-card-hover); }
+        .task-section-title {
+            font-size: 16px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .task-section-progress {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .task-section-progress .mini-bar {
+            width: 80px;
+            height: 6px;
+            background: var(--border-color);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .task-section-progress .mini-bar-fill {
+            height: 100%;
+            border-radius: 3px;
+        }
+        .task-section-count {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .task-section.expand .task-list { display: block; }
+        .task-section:not(.expand) .task-list { display: none; }
+
+        .task-list { padding: 0 16px 16px; }
+
+        .task-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: var(--bg-main);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            transition: all 0.2s;
+            border: 1px solid var(--border-color);
+        }
+        .task-item:hover { background: var(--bg-card-hover); border-color: var(--primary-light); }
+        .task-item.done {
+            opacity: 0.6;
+        }
+        .task-item.done .task-name {
+            text-decoration: line-through;
+        }
+        .task-edit-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            padding: 4px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .task-item:hover .task-edit-btn,
+        .task-item:hover .task-delete-btn {
+            opacity: 1;
+        }
+        .task-delete-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            padding: 4px;
+            opacity: 0;
+            transition: opacity 0.2s;
+            color: var(--status-overdue);
+        }
+        .task-delete-btn:hover {
+            color: #DC2626;
+        }
+        .task-name.editable {
+            cursor: pointer;
+        }
+        .task-name.editable:hover {
+            color: var(--primary);
+        }
+        .task-name-input {
+            width: 100%;
+            padding: 4px 8px;
+            border: 1px solid var(--primary);
+            border-radius: 4px;
+            font-size: 14px;
+            font-family: inherit;
+            color: var(--text-primary);
+            background: white;
+        }
+        .task-name-input:focus {
+            outline: none;
+        }
+        .add-task-btn {
+            padding: 10px;
+            text-align: center;
+            color: var(--primary);
+            font-size: 13px;
+            cursor: pointer;
+            border: 2px dashed var(--border-color);
+            border-radius: 8px;
+            margin-top: 8px;
+            transition: all 0.2s;
+        }
+        .add-task-btn:hover {
+            background: var(--bg-card-hover);
+            border-color: var(--primary);
+        }
+        .add-task-input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--primary);
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            color: var(--text-primary);
+            background: white;
+            margin-top: 8px;
+        }
+        .add-task-input:focus {
+            outline: none;
+        }
+
+        .task-checkbox {
+            width: 22px;
+            height: 22px;
+            border-radius: 6px;
+            border: 2px solid var(--border-color);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+        .task-checkbox.done {
+            background: var(--status-done);
+            border-color: var(--status-done);
+            color: white;
+        }
+        .task-checkbox:not(.done):hover {
+            border-color: var(--primary);
+        }
+
+        .task-content { flex: 1; }
+        .task-name {
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+        .task-meta {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        .task-meta .overdue-tag {
+            color: var(--status-overdue);
+            font-weight: 500;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 200;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal {
+            background: var(--bg-card);
+            border-radius: 16px;
+            width: 100%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+            animation: modalIn 0.3s ease;
+        }
+        @keyframes modalIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .modal-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .modal-title { font-size: 18px; font-weight: 600; }
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 24px;
+            cursor: pointer;
+        }
+        .modal-body { padding: 24px; }
+        .modal-footer {
+            padding: 16px 24px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+
+        .form-group { margin-bottom: 20px; }
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+        .form-input {
+            width: 100%;
+            padding: 12px 16px;
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 14px;
+        }
+        .form-input:focus { outline: none; border-color: var(--primary); }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .form-row-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 16px; }
+        @media (max-width: 768px) {
+            .form-row-4 { grid-template-columns: 1fr 1fr; }
+        }
+        .form-section-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--primary);
+            margin: 20px 0 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .form-section-title:first-of-type { margin-top: 0; }
+        .section-edit-item {
+            margin-bottom: 12px;
+            padding: 12px;
+            background: var(--bg-main);
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+        .section-edit-item label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            display: block;
+            margin-bottom: 6px;
+        }
+        .section-edit-item input {
+            width: 100%;
+            padding: 8px 12px;
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 13px;
+            color: var(--text-primary);
+            font-family: inherit;
+        }
+        .section-edit-item input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        /* Order Sections List in Modal */
+        .order-sections-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .order-section-card {
+            background: var(--bg-main);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px;
+        }
+        .order-section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .order-section-name {
+            font-weight: 600;
+            color: var(--primary);
+        }
+        .order-section-actions {
+            display: flex;
+            gap: 8px;
+        }
+        .order-section-task {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 0;
+            font-size: 13px;
+        }
+        .order-section-task input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+        }
+        .order-section-task-name {
+            flex: 1;
+        }
+        .order-section-task-actions {
+            display: flex;
+            gap: 4px;
+        }
+        .order-section-task-actions button {
+            padding: 2px 6px;
+            font-size: 12px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            opacity: 0.6;
+        }
+        .order-section-task-actions button:hover {
+            opacity: 1;
+        }
+        .order-add-task-btn {
+            color: var(--primary);
+            cursor: pointer;
+            font-size: 13px;
+            padding: 6px 0;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .order-add-task-btn:hover {
+            opacity: 0.8;
+        }
+
+        /* Data Actions */
+        .data-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 24px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: var(--bg-card);
+            color: var(--text-primary);
+            padding: 16px 24px;
+            border-radius: 8px;
+            border: 1px solid var(--status-done);
+            z-index: 300;
+            animation: toastIn 0.3s ease;
+        }
+        @keyframes toastIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container { padding: 16px; }
+            .orders-grid { grid-template-columns: 1fr; }
+            .detail-panel { max-width: 100%; }
+            .form-row { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body class="locked">
+    <!-- 登录遮罩 -->
+    <div class="login-overlay" id="loginOverlay">
+        <div class="login-box">
+            <div style="font-size: 48px; margin-bottom: 16px;">🔐</div>
+            <h2>玩具厂订单管理系统</h2>
+            <p>请输入访问密码</p>
+            <input type="password" id="loginPassword" placeholder="请输入密码" onkeypress="if(event.key==='Enter')checkLogin()">
+            <div class="login-error" id="loginError">密码错误，请重试</div>
+            <button onclick="checkLogin()">登 录</button>
+        </div>
+    </div>
+    <div class="container">
+        <!-- Main Tab Navigation -->
+        <div class="main-tabs">
+            <div class="main-tab active" data-tab="orders" onclick="switchMainTab('orders')">📋 订单管理</div>
+            <div class="main-tab" data-tab="inventory" onclick="switchMainTab('inventory')">📦 库存看板</div>
+        </div>
+
+        <!-- Orders Tab -->
+        <div class="tab-content active" id="tab-orders">
+
+        <!-- Stats Row with Actions -->
+        <div class="stats-row-wrapper">
+            <div class="stats-row">
+                <div class="stat-pill total">
+                    <span>📋</span>
+                    <span class="num" id="totalCount">0</span>
+                    <span>个订单</span>
+                </div>
+                <div class="stat-pill progress">
+                    <span>⏳</span>
+                    <span class="num" id="inProgressCount">0</span>
+                    <span>进行中</span>
+                </div>
+                <div class="stat-pill done">
+                    <span>✅</span>
+                    <span class="num" id="doneCount">0</span>
+                    <span>已完成</span>
+                </div>
+                <div class="stat-pill overdue">
+                    <span>⚠️</span>
+                    <span class="num" id="overdueCount">0</span>
+                    <span>已逾期</span>
+                </div>
+            </div>
+            <div class="stats-actions">
+                <button class="btn btn-primary" onclick="openAddModal()">+ 新增订单</button>
+                <button class="btn btn-secondary" onclick="openContactsModal()">👥 联系人</button>
+                <button class="btn btn-secondary" onclick="openTemplateModal()">📋 设置模板</button>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="filters">
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="搜索客户或产品..." oninput="renderOrders()">
+            </div>
+            <select class="filter-select" id="statusFilter" onchange="renderOrders()">
+                <option value="">全部状态</option>
+                <option value="active">进行中</option>
+                <option value="done">已完成</option>
+                <option value="overdue">已逾期</option>
+            </select>
+            <select class="filter-select" id="sortFilter" onchange="renderOrders()">
+                <option value="deliveryAsc">交货日期（近→远）</option>
+                <option value="deliveryDesc">交货日期（远→近）</option>
+                <option value="createdDesc">创建时间（新→旧）</option>
+            </select>
+        </div>
+
+        <!-- Orders Grid -->
+        <div class="orders-grid" id="ordersGrid"></div>
+        <div class="empty-state" id="emptyState" style="display: none;">
+            <div class="empty-state-icon">📦</div>
+            <h3>暂无订单</h3>
+            <p>点击右上角"新增订单"开始添加</p>
+        </div>
+
+        <!-- Data Actions -->
+        <div class="data-actions">
+            <button class="btn btn-secondary btn-sm" onclick="openExportModal()">📊 导出Excel</button>
+            <button class="btn btn-secondary btn-sm" onclick="document.getElementById('importDingtalkFile').click()">📋 导入Excel</button>
+            <input type="file" id="importDingtalkFile" accept=".xlsx,.xls,.csv,.txt" style="display: none;" onchange="importFromDingtalk(event)">
+        </div>
+        </div><!-- end tab-orders -->
+
+        <!-- Inventory Tab -->
+        <div class="tab-content" id="tab-inventory">
+            <!-- Inventory Stats -->
+            <div class="inventory-stats">
+                <div class="inventory-stat">
+                    <span class="inventory-stat-icon">📦</span>
+                    <div class="inventory-stat-info">
+                        <div class="label">产品种类</div>
+                        <div class="value" id="inventoryTypeCount">0</div>
+                    </div>
+                </div>
+                <div class="inventory-stat">
+                    <span class="inventory-stat-icon">📊</span>
+                    <div class="inventory-stat-info">
+                        <div class="label">总库存（个）</div>
+                        <div class="value" id="inventoryTotalCount">0</div>
+                    </div>
+                </div>
+                <div class="inventory-stat inventory-warning">
+                    <span class="inventory-stat-icon">⚠️</span>
+                    <div class="inventory-stat-info">
+                        <div class="label">库存预警</div>
+                        <div class="value" id="inventoryWarningCount">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Inventory Toolbar -->
+            <div class="inventory-toolbar">
+                <div class="inventory-search">
+                    <input type="text" id="inventorySearch" placeholder="搜索产品名称或关键词..." oninput="renderInventory()">
+                </div>
+                <button class="btn btn-primary" onclick="importInventory()">📥 导入库存</button>
+                <button class="btn btn-secondary" onclick="exportInventory()">📤 导出清单</button>
+                <button class="btn btn-secondary" onclick="openInventoryAddModal()">➕ 新增产品</button>
+                <input type="file" id="importInventoryFile" accept=".xlsx,.xls" style="display: none;" onchange="handleInventoryImport(event)">
+            </div>
+
+            <!-- Inventory Table -->
+            <div class="inventory-table-container" style="max-height: calc(100vh - 320px); overflow-y: auto;">
+                <table class="inventory-table">
+                    <thead>
+                        <tr>
+                            <th>产品名称</th>
+                            <th>别名/关键词</th>
+                            <th style="width: 80px;">每箱数</th>
+                            <th style="width: 80px;">每箱CBM</th>
+                            <th style="width: 100px;">盘点数量</th>
+                            <th style="width: 80px;">总箱数</th>
+                            <th style="width: 100px;">剩余个数</th>
+                            <th style="width: 80px;">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="inventoryTableBody">
+                    </tbody>
+                </table>
+                <div class="inventory-empty" id="inventoryEmpty" style="display: none;">
+                    <div class="inventory-empty-icon">📦</div>
+                    <h3>暂无库存数据</h3>
+                    <p>点击"导入库存"按钮导入Excel清单</p>
+                </div>
+            </div>
+
+            <!-- Inventory Edit Modal -->
+            <div class="modal-overlay" id="inventoryEditModal">
+                <div class="modal">
+                    <div class="modal-header">
+                        <h3 id="inventoryEditTitle">编辑产品</h3>
+                        <button class="modal-close" onclick="closeInventoryEditModal()">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="hidden" id="inventoryEditIdx">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>产品名称 *</label>
+                                <input type="text" id="inventoryEditName" class="form-input" placeholder="请输入产品名称">
+                            </div>
+                            <div class="form-group">
+                                <label>别名/关键词</label>
+                                <input type="text" id="inventoryEditKeywords" class="form-input" placeholder="多个关键词用逗号分隔">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>每箱数</label>
+                                <input type="number" id="inventoryEditPerBox" class="form-input" placeholder="每箱装几个" min="0">
+                            </div>
+                            <div class="form-group">
+                                <label>装盒数量</label>
+                                <input type="number" id="inventoryEditBoxCount" class="form-input" placeholder="装了几盒" min="0">
+                            </div>
+                        </div>
+                        <div class="form-section-title">长宽高（mm，自动计算CBM）</div>
+                        <div class="form-row form-row-4">
+                            <div class="form-group">
+                                <label>长 (mm)</label>
+                                <input type="number" id="inventoryEditLength" class="form-input" placeholder="长度" min="0" step="0.01" oninput="calcInventoryCBM()">
+                            </div>
+                            <div class="form-group">
+                                <label>宽 (mm)</label>
+                                <input type="number" id="inventoryEditWidth" class="form-input" placeholder="宽度" min="0" step="0.01" oninput="calcInventoryCBM()">
+                            </div>
+                            <div class="form-group">
+                                <label>高 (mm)</label>
+                                <input type="number" id="inventoryEditHeight" class="form-input" placeholder="高度" min="0" step="0.01" oninput="calcInventoryCBM()">
+                            </div>
+                            <div class="form-group">
+                                <label>每箱CBM</label>
+                                <input type="number" id="inventoryEditCbm" class="form-input" placeholder="自动计算" step="0.0001" readonly>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>盘点数量</label>
+                                <input type="number" id="inventoryEditCount" class="form-input" placeholder="实际盘点数量" min="0">
+                            </div>
+                            <div class="form-group">
+                                <label>总箱数</label>
+                                <input type="number" id="inventoryEditTotalBoxes" class="form-input" placeholder="自动计算" min="0" readonly>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>剩余个数</label>
+                            <input type="number" id="inventoryEditRemaining" class="form-input" placeholder="剩余库存数量" min="0">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" onclick="closeInventoryEditModal()">取消</button>
+                        <button class="btn btn-primary" onclick="saveInventoryEdit()">保存</button>
+                    </div>
+                </div>
+            </div>
+        </div><!-- end tab-inventory -->
+    </div><!-- end container -->
+
+    <!-- Detail Panel -->
+    <div class="detail-overlay" id="detailOverlay"></div>
+    <div class="detail-panel" id="detailPanel">
+        <div class="detail-header">
+            <div class="detail-header-top">
+                <div>
+                    <h2 class="order-title" id="detailTitle"></h2>
+                </div>
+                <button class="detail-close" onclick="closeDetail()">&times;</button>
+            </div>
+            <div class="detail-info">
+                <div class="detail-info-item">
+                    <label>客户</label>
+                    <span id="detailCustomer"></span>
+                </div>
+                <div class="detail-info-item">
+                    <label>项目负责人</label>
+                    <span id="detailProjectOwner"></span>
+                </div>
+                <div class="detail-info-item">
+                    <label>数量</label>
+                    <span id="detailQuantity"></span>
+                </div>
+                <div class="detail-info-item">
+                    <label>下单日期</label>
+                    <span id="detailOrderDate"></span>
+                </div>
+                <div class="detail-info-item">
+                    <label>交货日期</label>
+                    <span id="detailDeliveryDate"></span>
+                </div>
+                <div class="detail-info-item">
+                    <label>剩余时间</label>
+                    <span id="detailDaysLeft"></span>
+                </div>
+            </div>
+        </div>
+        <div class="detail-body" id="detailBody"></div>
+        <div class="detail-footer">
+            <button class="btn btn-secondary" onclick="addSectionFromDetail()">➕ 新增大项</button>
+            <button class="btn btn-primary" onclick="openEditModal()">✏️ 编辑</button>
+            <button class="btn btn-danger" onclick="deleteCurrentOrder()">🗑️ 删除</button>
+        </div>
+    </div>
+
+    <!-- Add/Edit Modal -->
+    <div class="modal-overlay" id="orderModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 class="modal-title" id="modalTitle">新增订单</h2>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="orderForm">
+                    <input type="hidden" id="editOrderId">
+                    <div class="form-section-title">基本信息</div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">客户名称 *</label>
+                            <input type="text" class="form-input" id="customerName" required placeholder="例如：大漂亮">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">产品名称 *</label>
+                            <input type="text" class="form-input" id="productName" required placeholder="例如：卡通公仔">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">数量</label>
+                            <input type="number" class="form-input" id="quantity" min="1" placeholder="例如：1000">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">下单日期</label>
+                            <input type="date" class="form-input" id="orderDate">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">交货日期 *</label>
+                        <input type="date" class="form-input" id="deliveryDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">项目负责人</label>
+                        <input type="text" class="form-input" id="projectOwner" placeholder="从钉钉导入的项目负责人">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">备注</label>
+                        <textarea class="form-input" id="remark" rows="2" placeholder="其他备注..."></textarea>
+                    </div>
+
+                    <!-- 阶段列表 -->
+                    <div class="form-section-title">订单阶段</div>
+                    <div id="orderSectionsList" class="order-sections-list"></div>
+                    <button type="button" class="btn btn-secondary" style="width: 100%; margin-top: 12px;" onclick="addOrderSection()">➕ 新增大项</button>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+                <button class="btn btn-primary" onclick="saveOrder()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 确认删除弹窗 -->
+    <div class="modal-overlay" id="deleteModal">
+        <div class="modal" style="max-width: 360px;">
+            <div class="modal-header">
+                <h2 class="modal-title">确认删除</h2>
+                <button class="modal-close" onclick="closeDeleteModal()">&times;</button>
+            </div>
+            <div class="modal-body" style="text-align: center; padding: 30px;">
+                <p style="font-size: 16px; color: var(--text-primary);">确定要删除订单</p>
+                <p id="deleteOrderId" style="font-size: 20px; font-weight: 700; color: var(--status-overdue); margin: 10px 0;"></p>
+                <p style="font-size: 14px; color: var(--text-secondary);">此操作不可撤销</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeDeleteModal()">取消</button>
+                <button class="btn btn-danger" onclick="confirmDelete()">确认删除</button>
+            </div>
+        </div>
+    </div>
+
+        <!-- 模板设置弹窗 -->
+    <div class="modal-overlay" id="templateModal">
+        <div class="modal" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2 class="modal-title">📋 设置默认模板</h2>
+                <button class="modal-close" onclick="closeTemplateModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="color: var(--text-secondary); font-size: 13px; margin-bottom: 16px;">
+                    设置好模板后，新建订单时会自动套用这些小项
+                </p>
+                <div id="templateSections"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="resetTemplate()">恢复默认</button>
+                <button class="btn btn-primary" onclick="saveTemplate()">保存模板</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 导出选择弹窗 -->
+    <div class="modal-overlay" id="exportModal">
+        <div class="modal" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2 class="modal-title">📊 导出Excel</h2>
+                <button class="modal-close" onclick="closeExportModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="color: var(--text-secondary); font-size: 13px; margin-bottom: 16px;">
+                    选择要导出的订单（不选则导出全部）
+                </p>
+                <div style="max-height: 400px; overflow-y: auto;">
+                    <div style="margin-bottom: 12px;">
+                        <label style="display: flex; align-items: center; gap: 8px; padding: 8px; background: var(--bg-card-hover); border-radius: 6px; cursor: pointer;">
+                            <input type="checkbox" id="exportSelectAll" onchange="toggleExportAll(this)" style="width: 16px; height: 16px;">
+                            <span style="font-weight: 500;">全选 / 取消全选</span>
+                        </label>
+                    </div>
+                    <div id="exportOrderList"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeExportModal()">取消</button>
+                <button class="btn btn-primary" onclick="doExportSelected()">导出选中项</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 联系人设置弹窗 -->
+    <div class="modal-overlay" id="contactsModal">
+        <div class="modal" style="max-width: 400px;">
+            <div class="modal-header">
+                <h2 class="modal-title">👥 常用联系人</h2>
+                <button class="modal-close" onclick="closeContactsModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="color: var(--text-secondary); font-size: 13px; margin-bottom: 16px;">
+                    添加常用联系人，方便快速选择
+                </p>
+                <div style="display:flex; gap:8px; margin-bottom:16px;">
+                    <input type="text" id="newContactInput" class="form-input" placeholder="输入联系人姓名" style="flex:1;">
+                    <button class="btn btn-primary" onclick="addContact()">添加</button>
+                </div>
+                <div id="contactsList"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ====== 配置 ======
+        const SECTIONS = [
+            {
+                id: 'baojia',
+                name: '报价办',
+                icon: '💰',
+                tasks: ['设计文稿介绍会', '材料选择', '材料/工艺清单及完成设计', '3D拆图及打印', '布料回厂', '首轮样板', '客人comment及改善', '报价']
+            },
+            {
+                id: 'shengchan',
+                name: '生产办',
+                icon: '📝',
+                tasks: ['打样申请', '样品确认', '大货审批', '生产许可证']
+            },
+            {
+                id: 'fangchan',
+                name: '放产资料',
+                icon: '📄',
+                tasks: ['BOM表整理', '工艺图纸', '作业指导书', '发料单']
+            },
+            {
+                id: 'wuliao',
+                name: '物料请购',
+                icon: '🛒',
+                tasks: ['物料清单核对', '供应商询价', '采购下单', '物料到货确认']
+            },
+            {
+                id: 'jiagong',
+                name: '加工商确认',
+                icon: '🤝',
+                tasks: ['加工商筛选', '合同签订', '技术交底', '交期确认']
+            },
+            {
+                id: 'genjin',
+                name: '加工商生产跟进',
+                icon: '🔄',
+                tasks: ['首件确认', '进度跟进', '品质检验', '出货安排']
+            },
+            {
+                id: 'neibu',
+                name: '内部生产安排',
+                icon: '🏭',
+                tasks: ['排产计划', '产线分配', '生产日报', '完成入库']
+            }
+        ];
+
+        // ====== 登录验证 ======
+        const LOGIN_PASSWORD = 'tpt2026'; // 登录密码
+        const LOGIN_KEY = 'tpt_logged_in';
+
+        function checkLogin() {
+            const input = document.getElementById('loginPassword');
+            const error = document.getElementById('loginError');
+            if (input.value === LOGIN_PASSWORD) {
+                sessionStorage.setItem(LOGIN_KEY, 'true');
+                document.getElementById('loginOverlay').classList.add('hidden');
+                document.body.classList.remove('locked');
+            } else {
+                error.style.display = 'block';
+                input.value = '';
+                input.focus();
+            }
+        }
+
+        // 页面加载时检查登录状态
+        window.addEventListener('DOMContentLoaded', function() {
+            if (sessionStorage.getItem(LOGIN_KEY) === 'true') {
+                document.getElementById('loginOverlay').classList.add('hidden');
+                document.body.classList.remove('locked');
+            }
+            // 自动聚焦密码输入框
+            document.getElementById('loginPassword').focus();
+        });
+
+        // ====== 数据 ======
+        let orders = [];
+        let currentOrderId = null;
+
+        // 默认模板
+        const DEFAULT_TEMPLATE = [
+            { id: 'baojia', name: '报价办', icon: '💰', tasks: ['设计文稿介绍会', '材料选择', '材料/工艺清单及完成设计', '3D拆图及打印', '布料回厂', '首轮样板', '客人comment及改善', '报价'] },
+            { id: 'shengchan', name: '生产办', icon: '📝', tasks: ['打样申请', '样品确认', '大货审批', '生产许可证'] },
+            { id: 'fangchan', name: '放产资料', icon: '📄', tasks: ['BOM表整理', '工艺图纸', '作业指导书', '发料单'] },
+            { id: 'wuliao', name: '物料请购', icon: '🛒', tasks: ['物料清单核对', '供应商询价', '采购下单', '物料到货确认'] },
+            { id: 'jiagong', name: '加工商确认', icon: '🤝', tasks: ['加工商筛选', '合同签订', '技术交底', '交期确认'] },
+            { id: 'genjin', name: '加工商生产跟进', icon: '🔄', tasks: ['首件确认', '进度跟进', '品质检验', '出货安排'] },
+            { id: 'neibu', name: '内部生产安排', icon: '🏭', tasks: ['排产计划', '产线分配', '生产日报', '完成入库'] }
+        ];
+
+        let currentTemplate = null;
+
+        function getTemplate() {
+            if (currentTemplate) return currentTemplate;
+            const saved = localStorage.getItem('orderTemplate');
+            if (saved) {
+                currentTemplate = JSON.parse(saved);
+                return currentTemplate;
+            }
+            currentTemplate = JSON.parse(JSON.stringify(DEFAULT_TEMPLATE));
+            return currentTemplate;
+        }
+
+        // ============ 标签切换 ============
+        function switchMainTab(tab) {
+            document.querySelectorAll('.main-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelector(`.main-tab[data-tab="${tab}"]`).classList.add('active');
+            document.getElementById(`tab-${tab}`).classList.add('active');
+            if (tab === 'inventory') {
+                loadInventory();
+                renderInventory();
+            }
+        }
+
+        // ============ 库存管理 ============
+        let inventoryData = [];
+
+        function loadInventory() {
+            const saved = localStorage.getItem('inventory_data');
+            inventoryData = saved ? JSON.parse(saved) : [];
+        }
+
+        function saveInventory() {
+            localStorage.setItem('inventory_data', JSON.stringify(inventoryData));
+        }
+
+        function renderInventory() {
+            const search = document.getElementById('inventorySearch').value.toLowerCase();
+            const tbody = document.getElementById('inventoryTableBody');
+            const empty = document.getElementById('inventoryEmpty');
+
+            const filtered = inventoryData.filter(item => {
+                if (!search) return true;
+                return item.name.toLowerCase().includes(search) ||
+                       (item.keywords || '').toLowerCase().includes(search);
+            });
+
+            // 更新统计
+            document.getElementById('inventoryTypeCount').textContent = inventoryData.length;
+            const totalCount = inventoryData.reduce((sum, i) => sum + (i.remaining || 0), 0);
+            document.getElementById('inventoryTotalCount').textContent = totalCount.toLocaleString();
+            const warningCount = inventoryData.filter(i => (i.remaining || 0) < 100).length;
+            document.getElementById('inventoryWarningCount').textContent = warningCount;
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = '';
+                empty.style.display = 'block';
+                return;
+            }
+            empty.style.display = 'none';
+
+            tbody.innerHTML = filtered.map((item, idx) => {
+                const stockClass = (item.remaining || 0) < 100 ? 'low' : (item.remaining || 0) < 500 ? 'medium' : 'high';
+                return `
+                    <tr data-idx="${inventoryData.indexOf(item)}">
+                        <td>${escapeHtml(item.name)}</td>
+                        <td style="color: var(--text-secondary); font-size: 13px;">${escapeHtml(item.keywords || '-')}</td>
+                        <td>${item.perBox || '-'}</td>
+                        <td>${item.cbm || '-'}</td>
+                        <td>${(item.count || 0).toLocaleString()}</td>
+                        <td>${item.totalBoxes || 0}</td>
+                        <td class="inventory-stock ${stockClass}">${(item.remaining || 0).toLocaleString()}</td>
+                        <td>
+                            <button class="btn btn-sm btn-secondary" onclick="editInventoryItem(${inventoryData.indexOf(item)})">✏️</button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteInventoryItem(${inventoryData.indexOf(item)})">🗑️</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function handleInventoryImport(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const jsonData = XLSX.utils.sheet_to_json(sheet);
+
+                    inventoryData = jsonData.map(row => ({
+                        name: row['产品名称'] || row['产品名称 '] || '',
+                        keywords: row['别名/关键词'] || row['别名/关键词 '] || '',
+                        perBox: parseInt(row['每箱数'] || row['每箱数 ']) || 0,
+                        cbm: parseFloat(row['每箱CBM'] || row['每箱CBM ']) || 0,
+                        count: parseInt(row['盘点数量'] || row['盘点数量 ']) || 0,
+                        totalBoxes: parseInt(row['总箱数'] || row['总箱数 ']) || 0,
+                        remaining: parseInt(row['剩余个数'] || row['剩余个数 ']) || 0
+                    })).filter(item => item.name);
+
+                    saveInventory();
+                    renderInventory();
+                    showToast(`导入成功，共 ${inventoryData.length} 个产品`);
+                } catch (err) {
+                    showToast('导入失败：' + err.message, false);
+                }
+            };
+            reader.readAsArrayBuffer(file);
+            event.target.value = '';
+        }
+
+        function importInventory() {
+            document.getElementById('importInventoryFile').click();
+        }
+
+        function exportInventory() {
+            if (inventoryData.length === 0) {
+                showToast('没有可导出的数据', false);
+                return;
+            }
+            const exportData = inventoryData.map(item => ({
+                '产品名称': item.name,
+                '别名/关键词': item.keywords || '',
+                '每箱数': item.perBox || 0,
+                '装盒数量': item.boxCount || 0,
+                '长(mm)': item.length || 0,
+                '宽(mm)': item.width || 0,
+                '高(mm)': item.height || 0,
+                '每箱CBM': item.cbm || 0,
+                '盘点数量': item.count || 0,
+                '总箱数': item.totalBoxes || 0,
+                '剩余个数': item.remaining || 0
+            }));
+            const ws = XLSX.utils.json_to_sheet(exportData);
+            ws['!cols'] = [{ wch: 30 }, { wch: 30 }, { wch: 10 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 12 }];
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, '库存清单');
+            const date = new Date().toISOString().split('T')[0];
+            XLSX.writeFile(wb, `库存清单_${date}.xlsx`);
+            showToast('导出成功');
+        }
+
+        function openInventoryAddModal() {
+            document.getElementById('inventoryEditIdx').value = -1;
+            document.getElementById('inventoryEditTitle').textContent = '新增产品';
+            document.getElementById('inventoryEditName').value = '';
+            document.getElementById('inventoryEditKeywords').value = '';
+            document.getElementById('inventoryEditPerBox').value = '';
+            document.getElementById('inventoryEditBoxCount').value = '';
+            document.getElementById('inventoryEditLength').value = '';
+            document.getElementById('inventoryEditWidth').value = '';
+            document.getElementById('inventoryEditHeight').value = '';
+            document.getElementById('inventoryEditCbm').value = '';
+            document.getElementById('inventoryEditCount').value = '';
+            document.getElementById('inventoryEditTotalBoxes').value = '';
+            document.getElementById('inventoryEditRemaining').value = '';
+            document.getElementById('inventoryEditModal').classList.add('active');
+        }
+
+        function editInventoryItem(idx) {
+            const item = inventoryData[idx];
+            document.getElementById('inventoryEditIdx').value = idx;
+            document.getElementById('inventoryEditTitle').textContent = '编辑产品';
+            document.getElementById('inventoryEditName').value = item.name || '';
+            document.getElementById('inventoryEditKeywords').value = item.keywords || '';
+            document.getElementById('inventoryEditPerBox').value = item.perBox || '';
+            document.getElementById('inventoryEditBoxCount').value = item.boxCount || '';
+            document.getElementById('inventoryEditLength').value = item.length || '';
+            document.getElementById('inventoryEditWidth').value = item.width || '';
+            document.getElementById('inventoryEditHeight').value = item.height || '';
+            document.getElementById('inventoryEditCbm').value = item.cbm || '';
+            document.getElementById('inventoryEditCount').value = item.count || '';
+            document.getElementById('inventoryEditTotalBoxes').value = item.totalBoxes || '';
+            document.getElementById('inventoryEditRemaining').value = item.remaining || '';
+            document.getElementById('inventoryEditModal').classList.add('active');
+        }
+
+        function closeInventoryEditModal() {
+            document.getElementById('inventoryEditModal').classList.remove('active');
+        }
+
+        function calcInventoryCBM() {
+            const length = parseFloat(document.getElementById('inventoryEditLength').value) || 0;
+            const width = parseFloat(document.getElementById('inventoryEditWidth').value) || 0;
+            const height = parseFloat(document.getElementById('inventoryEditHeight').value) || 0;
+            // CBM = 长 × 宽 × 高 / 1000000000 (mm³ 转 m³，1000mm = 1m)
+            const cbm = (length * width * height / 1000000000).toFixed(4);
+            document.getElementById('inventoryEditCbm').value = cbm;
+        }
+
+        function saveInventoryEdit() {
+            const idx = parseInt(document.getElementById('inventoryEditIdx').value);
+            const name = document.getElementById('inventoryEditName').value.trim();
+            if (!name) {
+                alert('请输入产品名称');
+                return;
+            }
+            const keywords = document.getElementById('inventoryEditKeywords').value.trim();
+            const perBox = parseInt(document.getElementById('inventoryEditPerBox').value) || 0;
+            const boxCount = parseInt(document.getElementById('inventoryEditBoxCount').value) || 0;
+            const length = parseFloat(document.getElementById('inventoryEditLength').value) || 0;
+            const width = parseFloat(document.getElementById('inventoryEditWidth').value) || 0;
+            const height = parseFloat(document.getElementById('inventoryEditHeight').value) || 0;
+            const cbm = parseFloat(document.getElementById('inventoryEditCbm').value) || 0;
+            const count = parseInt(document.getElementById('inventoryEditCount').value) || 0;
+            const remaining = parseInt(document.getElementById('inventoryEditRemaining').value) || 0;
+            const totalBoxes = perBox ? Math.floor(remaining / perBox) : 0;
+
+            const itemData = {
+                name,
+                keywords,
+                perBox,
+                boxCount,
+                length,
+                width,
+                height,
+                cbm,
+                count,
+                totalBoxes,
+                remaining
+            };
+
+            if (idx === -1) {
+                // 新增
+                inventoryData.push(itemData);
+                showToast('已添加产品');
+            } else {
+                // 编辑
+                inventoryData[idx] = { ...inventoryData[idx], ...itemData };
+                showToast('已更新');
+            }
+            saveInventory();
+            renderInventory();
+            closeInventoryEditModal();
+        }
+
+        function deleteInventoryItem(idx) {
+            if (!confirm('确定要删除这个产品？')) return;
+            inventoryData.splice(idx, 1);
+            saveInventory();
+            renderInventory();
+            showToast('已删除');
+        }
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            loadOrders();
+            getTemplate(); // 加载模板
+            renderOrders();
+            updateStats();
+            loadInventory(); // 预加载库存数据
+        });
+
+        function loadOrders() {
+            const saved = localStorage.getItem('orders_shoudao');
+            orders = saved ? JSON.parse(saved) : [];
+        }
+
+        function saveOrders() {
+            localStorage.setItem('orders_shoudao', JSON.stringify(orders));
+        }
+
+        function generateOrderId() {
+            const now = new Date();
+            const year = now.getFullYear().toString().slice(-2);
+            const month = (now.getMonth() + 1).toString().padStart(2, '0');
+            const day = now.getDate().toString().padStart(2, '0');
+            const time = Date.now().toString(36).toUpperCase();
+            const rand = Math.random().toString(36).substring(2, 5).toUpperCase();
+            return `TPT${year}${month}${day}-${time}${rand}`;
+        }
+
+        // ====== 渲染 ======
+        function renderOrders() {
+            const grid = document.getElementById('ordersGrid');
+            const empty = document.getElementById('emptyState');
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            const statusFilter = document.getElementById('statusFilter').value;
+            const sortFilter = document.getElementById('sortFilter').value;
+
+            let filtered = orders.filter(o => {
+                const matchSearch = !search || 
+                    o.id.toLowerCase().includes(search) ||
+                    o.customerName.toLowerCase().includes(search) ||
+                    o.productName.toLowerCase().includes(search);
+                
+                const progress = calcOverallProgress(o);
+                let matchStatus = true;
+                if (statusFilter === 'done') matchStatus = progress >= 100;
+                else if (statusFilter === 'active') matchStatus = progress < 100 && !isOverdue(o);
+                else if (statusFilter === 'overdue') matchStatus = isOverdue(o);
+                
+                return matchSearch && matchStatus;
+            });
+
+            filtered.sort((a, b) => {
+                const progressA = calcOverallProgress(a);
+                const progressB = calcOverallProgress(b);
+                const doneA = progressA >= 100;
+                const doneB = progressB >= 100;
+                
+                // 已完成的排在最后
+                if (doneA !== doneB) return doneA ? 1 : -1;
+                
+                if (sortFilter === 'deliveryAsc') return new Date(a.deliveryDate) - new Date(b.deliveryDate);
+                if (sortFilter === 'deliveryDesc') return new Date(b.deliveryDate) - new Date(a.deliveryDate);
+                if (sortFilter === 'createdDesc') return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+                return 0;
+            });
+
+            if (filtered.length === 0) {
+                grid.style.display = 'none';
+                empty.style.display = 'block';
+                return;
+            }
+
+            grid.style.display = 'grid';
+            empty.style.display = 'none';
+
+            grid.innerHTML = filtered.map(order => {
+                const progress = calcOverallProgress(order);
+                const isOv = isOverdue(order);
+                const progressClass = progress >= 100 ? 'progress-high' : progress >= 50 ? 'progress-mid' : 'progress-low';
+                const barClass = progress >= 100 ? 'high' : progress >= 50 ? 'mid' : 'low';
+                const isDone = progress >= 100;
+                
+                // 获取订单实际有的sections
+                const orderSectionIds = Object.keys(order.sections || {});
+                const sectionsToShow = orderSectionIds.length > 0
+                    ? orderSectionIds.map(id => {
+                        const templateSection = getTemplate().find(s => s.id === id);
+                        return templateSection || { id: id, name: id, icon: '📋' };
+                    })
+                    : getTemplate();
+                
+                // 分成两行显示
+                const row1 = sectionsToShow.slice(0, 4);
+                const row2 = sectionsToShow.slice(4);
+                
+                const renderSectionRow = (sections) => sections.map(s => {
+                    const tasks = getSectionTasks(s.id, order);
+                    const sec = order.sections?.[s.id] || {};
+                    const sectionName = sec.sectionName || s.name;
+                    const secTasks = sec.tasks || {};
+                    const total = tasks.length;
+                    const done = Object.values(secTasks).filter(t => t.done).length;
+                    const cls = done === total ? 'done' : done > 0 ? 'progress' : 'todo';
+                    return `<span class="section-badge ${cls}" onclick="event.stopPropagation(); openDetail('${order.id}', '${s.id}')">${s.icon} ${sectionName} ${done}/${total}</span>`;
+                }).join('');
+                
+                return `
+                    <div class="order-card ${isOv && progress < 100 ? 'overdue' : ''} ${isDone ? 'done-order' : ''}" onclick="openDetail('${order.id}')">
+                        <div class="order-card-header">
+
+                            <div class="order-card-badges">
+                                <span class="days-badge ${getDaysBadgeClass(order)}">${getDaysLabel(order)}</span>
+                                <span class="overall-progress ${progressClass}">${progress}%</span>
+                            </div>
+                        </div>
+                        <div class="order-title">${escapeHtml(order.productName)}</div>
+                        <div class="order-customer">🤵🏻 ${escapeHtml(order.customerName || '未填写')}</div>
+                        ${order.projectOwner ? `<div class="order-meta" style="font-size:12px;">👔 ${escapeHtml(order.projectOwner)}</div>` : ''}
+                        <div class="order-meta">
+                            <span>📦 ${order.quantity || '-'} 件</span>
+                            <span>📅 ${order.deliveryDate}</span>
+                        </div>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar ${barClass}" style="width: ${progress}%"></div>
+                        </div>
+                        <div class="mini-task-label">
+                            ${row1.length > 0 ? `<div class="section-badges-row">${renderSectionRow(row1)}</div>` : ''}
+                            ${row2.length > 0 ? `<div class="section-badges-row">${renderSectionRow(row2)}</div>` : ''}
+                            ${order.remark ? `<div style="margin-top: 8px; font-size: 12px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(order.remark)}">📝 ${escapeHtml(order.remark)}</div>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function updateStats() {
+            const total = orders.length;
+            const done = orders.filter(o => calcOverallProgress(o) >= 100).length;
+            const inProgress = orders.filter(o => calcOverallProgress(o) < 100 && !isOverdue(o)).length;
+            const overdue = orders.filter(o => isOverdue(o) && calcOverallProgress(o) < 100).length;
+
+            document.getElementById('totalCount').textContent = total;
+            document.getElementById('doneCount').textContent = done;
+            document.getElementById('inProgressCount').textContent = inProgress;
+            document.getElementById('overdueCount').textContent = overdue;
+        }
+
+        // ====== 详情面板 ======
+        function openDetail(id, focusSectionId = null) {
+            currentOrderId = id;
+            const order = orders.find(o => o.id === id);
+            if (!order) return;
+
+
+            document.getElementById('detailTitle').textContent = order.productName;
+            document.getElementById('detailCustomer').textContent = order.customerName || '-';
+            document.getElementById('detailProjectOwner').textContent = order.projectOwner || '-';
+            document.getElementById('detailQuantity').textContent = (order.quantity || '-') + ' 件';
+            document.getElementById('detailOrderDate').textContent = order.orderDate || '-';
+            document.getElementById('detailDeliveryDate').textContent = order.deliveryDate;
+            const daysLeftEl = document.getElementById('detailDaysLeft');
+            daysLeftEl.textContent = getDaysLabel(order);
+            daysLeftEl.style.color = getDaysBadgeClass(order) === 'danger' ? 'var(--status-overdue)' : 
+                                     getDaysBadgeClass(order) === 'warning' ? 'var(--status-progress)' : 
+                                     'var(--status-done)';
+
+            const body = document.getElementById('detailBody');
+            // 获取订单实际有的sections，如果没有则用预设模板
+            const orderSectionIds = Object.keys(order.sections || {});
+            const sectionsToShow = orderSectionIds.length > 0 
+                ? orderSectionIds.map(id => {
+                    const templateSection = getTemplate().find(s => s.id === id);
+                    // 如果模板里有，用模板的名称和图标；否则用id作为名称
+                    return templateSection || { id: id, name: id, icon: '📋' };
+                })
+                : getTemplate();
+            
+            body.innerHTML = sectionsToShow.map(section => {
+                const tasks = getSectionTasks(section.id, order);
+                const sec = order.sections?.[section.id] || { tasks: {}, sectionName: section.name };
+                const sectionName = sec.sectionName || section.name;
+                const total = tasks.length;
+                const done = Object.values(sec.tasks || {}).filter(t => t.done).length;
+                const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+                const barColor = pct >= 100 ? 'var(--status-done)' : pct >= 50 ? 'var(--status-progress)' : 'var(--status-todo)';
+
+                return `
+                    <div class="task-section expand" data-section="${section.id}">
+                        <div class="task-section-header" onclick="toggleSection(this)">
+                            <span class="task-section-title" onclick="event.stopPropagation(); editOrderSectionName('${order.id}', '${section.id}', this)">${section.icon} ${sectionName}</span>
+                            <div class="task-section-progress">
+                                <div class="mini-bar"><div class="mini-bar-fill" style="width:${pct}%;background:${barColor}"></div></div>
+                                <span class="task-section-count">${done}/${total}</span>
+                                <button class="btn btn-sm btn-danger" onclick="event.stopPropagation(); deleteOrderSection('${order.id}', '${section.id}')" title="删除整个阶段" style="margin-left:8px; padding:2px 6px;">🗑️</button>
+                            </div>
+                        </div>
+                        <div class="task-list">
+                            ${tasks.map((taskName, idx) => {
+                                const task = sec.tasks?.[idx] || { done: false, person: '', deadline: '' };
+                                const deadlineInfo = getTaskDeadlineInfo(task.deadline);
+                                return `
+                                    <div class="task-item ${task.done ? 'done' : ''}">
+                                        <div class="task-checkbox ${task.done ? 'done' : ''}" onclick="toggleTask('${section.id}', ${idx}, event)">
+                                            ${task.done ? '✓' : ''}
+                                        </div>
+                                        <div class="task-content" style="flex:1;">
+                                            <div class="task-name editable" 
+                                                 onclick="editTask(this, '${section.id}', ${idx})"
+                                                 data-section="${section.id}" 
+                                                 data-idx="${idx}">${taskName}</div>
+                                            ${task.person || task.deadline ? `
+                                            <div class="task-meta" style="margin-top:4px; font-size:12px;">
+                                                ${task.person ? `<span>🤵🏻 ${escapeHtml(task.person)}</span>` : ''}
+                                                ${task.deadline ? `<span style="margin-left:12px;">📅 ${task.deadline}</span>` : ''}
+                                                ${deadlineInfo ? `<span style="margin-left:12px;" class="${deadlineInfo.class}">⏰ ${deadlineInfo.text}</span>` : ''}
+                                            </div>` : ''}
+                                        </div>
+                                        <button class="task-edit-btn" onclick="editTask(this.closest('.task-item').querySelector('.task-name'), '${section.id}', ${idx})">✏️</button>
+                                        <button class="task-delete-btn" onclick="deleteTask('${section.id}', ${idx})">🗑️</button>
+                                    </div>
+                                `;
+                            }).join('')}
+                            <div class="add-task-btn" onclick="addNewTask('${section.id}')">
+                                <span>+</span> 新增小项
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            document.getElementById('detailOverlay').classList.add('active');
+            document.getElementById('detailPanel').classList.add('active');
+
+            // 如果指定了要聚焦的大项，自动展开并滚动
+            if (focusSectionId) {
+                const targetSection = document.querySelector(`[data-section="${focusSectionId}"]`);
+                if (targetSection) {
+                    targetSection.classList.add('expand');
+                    setTimeout(() => {
+                        // 滚动到详情面板，留出头部空间（约180px）
+                        const panel = document.getElementById('detailPanel');
+                        const targetTop = targetSection.offsetTop;
+                        panel.scrollTo({ top: targetTop - 263, behavior: 'smooth' });
+                    }, 100);
+                }
+            }
+        }
+        
+        function editOrderSectionName(orderId, sectionId, el) {
+            const order = orders.find(o => o.id === orderId);
+            if (!order || !order.sections[sectionId]) return;
+            
+            const sec = order.sections[sectionId];
+            const currentName = sec.sectionName || getTemplate().find(s => s.id === sectionId)?.name || sectionId;
+            const newName = prompt('修改阶段名称:', currentName);
+            
+            if (newName && newName.trim() && newName.trim() !== currentName) {
+                sec.sectionName = newName.trim();
+                saveOrders();
+                el.textContent = '📋 ' + newName.trim();
+                showToast('阶段名称已修改');
+            }
+        }
+        
+        function deleteOrderSection(orderId, sectionId) {
+            const order = orders.find(o => o.id === orderId);
+            if (!order || !order.sections[sectionId]) return;
+            
+            const sectionName = order.sections[sectionId].sectionName || sectionId;
+            if (confirm(`确定要删除阶段"${sectionName}"吗？该阶段下的所有任务也会被删除。`)) {
+                delete order.sections[sectionId];
+                saveOrders();
+                openDetail(orderId);
+                showToast(`已删除阶段"${sectionName}"`);
+            }
+        }
+
+        function closeDetail() {
+            document.getElementById('detailOverlay').classList.remove('active');
+            document.getElementById('detailPanel').classList.remove('active');
+            currentOrderId = null;
+            renderOrders();
+            updateStats();
+        }
+
+        let pendingDeleteId = null;
+
+        function deleteCurrentOrder() {
+            if (!currentOrderId) return;
+            document.getElementById('deleteOrderId').textContent = `#${currentOrderId}`;
+            pendingDeleteId = currentOrderId;
+            document.getElementById('deleteModal').classList.add('active');
+        }
+
+        function closeDeleteModal() {
+            document.getElementById('deleteModal').classList.remove('active');
+            pendingDeleteId = null;
+        }
+
+        function deleteTask(sectionId, idx) {
+            const order = orders.find(o => o.id === currentOrderId);
+            if (!order) return;
+
+            if (!order.sections[sectionId]?.customTasks) return;
+            
+            // 删除小项名称和状态
+            order.sections[sectionId].customTasks.splice(idx, 1);
+            delete order.sections[sectionId].tasks[idx];
+            
+            // 重新索引tasks
+            const newTasks = {};
+            order.sections[sectionId].customTasks.forEach((_, i) => {
+                if (order.sections[sectionId].tasks[i] !== undefined) {
+                    newTasks[Object.keys(newTasks).length] = order.sections[sectionId].tasks[i];
+                }
+            });
+            order.sections[sectionId].tasks = newTasks;
+            
+            saveOrders();
+            openDetail(currentOrderId);
+            showToast('小项已删除');
+        }
+
+        function addNewTask(sectionId) {
+            const order = orders.find(o => o.id === currentOrderId);
+            if (!order) return;
+
+            // 初始化 sections 结构
+            if (!order.sections[sectionId]) {
+                order.sections[sectionId] = { tasks: {}, customTasks: [] };
+            }
+            if (!order.sections[sectionId].customTasks) {
+                order.sections[sectionId].customTasks = [];
+            }
+            if (!order.sections[sectionId].tasks) {
+                order.sections[sectionId].tasks = {};
+            }
+
+            // 弹出输入框让用户输入小项名称
+            const taskName = prompt('请输入小项名称：');
+            if (!taskName || !taskName.trim()) return;
+
+            const newIdx = order.sections[sectionId].customTasks.length;
+            
+            // 同时添加到 customTasks（名称）和 tasks（状态）
+            order.sections[sectionId].customTasks.push(taskName.trim());
+            order.sections[sectionId].tasks[newIdx] = { done: false };
+            
+            saveOrders();
+            showToast('已添加：' + taskName.trim());
+            
+            // 刷新详情面板
+            openDetail(currentOrderId);
+        }
+
+        function editTask(el, sectionId, idx) {
+            const order = orders.find(o => o.id === currentOrderId);
+            if (!order) return;
+
+            // 初始化 sections
+            if (!order.sections[sectionId]) {
+                order.sections[sectionId] = { tasks: {}, customTasks: [] };
+            }
+            if (!order.sections[sectionId].customTasks) {
+                const tasks = getSectionTasks(sectionId, order);
+                order.sections[sectionId].customTasks = [...tasks];
+            }
+            if (!order.sections[sectionId].tasks[idx]) {
+                order.sections[sectionId].tasks[idx] = { done: false, person: '', deadline: '' };
+            }
+
+            const currentTask = order.sections[sectionId].tasks[idx];
+            const currentName = order.sections[sectionId].customTasks[idx];
+            const contacts = getContacts();
+            const taskItem = el.closest('.task-item');
+            
+            // 替换整个 task-content
+            const taskContent = taskItem.querySelector('.task-content');
+            taskContent.innerHTML = `
+                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                    <input type="text" id="editName" class="task-name-input" value="${currentName}" style="flex:1; min-width:120px;">
+                    <div style="position:relative;">
+                        <input type="text" id="editPerson" class="task-name-input" value="${currentTask.person || ''}" placeholder="负责人" style="width:80px;" autocomplete="off">
+                        <div id="personSuggestions" style="position:absolute; top:100%; left:0; right:0; background:white; border:1px solid var(--border-color); border-radius:6px; display:none; z-index:100; max-height:150px; overflow-y:auto;"></div>
+                    </div>
+                    <input type="date" id="editDeadline" class="task-name-input" value="${currentTask.deadline || ''}" style="width:130px;">
+                    <button class="btn btn-primary btn-sm" onclick="saveTaskEdit('${sectionId}', ${idx})">✓</button>
+                    <button class="btn btn-secondary btn-sm" onclick="openDetail(currentOrderId)">✕</button>
+                </div>
+            `;
+            
+            // 联系人输入框 - 显示建议列表
+            const personInput = document.getElementById('editPerson');
+            const suggestionsBox = document.getElementById('personSuggestions');
+            
+            personInput.addEventListener('focus', () => {
+                renderSuggestions(contacts);
+            });
+            
+            personInput.addEventListener('input', () => {
+                const val = personInput.value.toLowerCase();
+                const filtered = contacts.filter(c => c.toLowerCase().includes(val));
+                renderSuggestions(filtered);
+            });
+            
+            personInput.addEventListener('blur', () => {
+                setTimeout(() => suggestionsBox.style.display = 'none', 200);
+            });
+            
+            function renderSuggestions(list) {
+                if (list.length === 0 && !personInput.value) {
+                    suggestionsBox.style.display = 'none';
+                    return;
+                }
+                suggestionsBox.innerHTML = list.map(c => 
+                    `<div onclick="this.parentElement.previousElementSibling.value='${escapeHtml(c)}'; this.parentElement.style.display='none';" style="padding:8px 12px; cursor:pointer; hover:background:var(--bg-card-hover);">${escapeHtml(c)}</div>`
+                ).join('') || '<div style="padding:8px; color:var(--text-secondary);">无匹配</div>';
+                suggestionsBox.style.display = 'block';
+            }
+            
+            document.getElementById('editName').focus();
+            document.getElementById('editName').setSelectionRange(currentName.length, currentName.length);
+        }
+
+        function saveTaskEdit(sectionId, idx) {
+            const order = orders.find(o => o.id === currentOrderId);
+            if (!order) return;
+
+            const newName = document.getElementById('editName').value.trim();
+            const person = document.getElementById('editPerson').value.trim();
+            const deadline = document.getElementById('editDeadline').value;
+
+            // 更新名称
+            if (newName) {
+                if (!order.sections[sectionId].customTasks) {
+                    const tasks = getSectionTasks(sectionId, order);
+                    order.sections[sectionId].customTasks = [...tasks];
+                }
+                order.sections[sectionId].customTasks[idx] = newName;
+            }
+            
+            // 更新负责人和截止时间
+            if (!order.sections[sectionId].tasks[idx]) {
+                order.sections[sectionId].tasks[idx] = {};
+            }
+            order.sections[sectionId].tasks[idx].person = person;
+            order.sections[sectionId].tasks[idx].deadline = deadline;
+            
+            saveOrders();
+            openDetail(currentOrderId);
+            showToast('已保存');
+        }
+
+        function confirmDelete() {
+            if (!pendingDeleteId) return;
+            orders = orders.filter(o => o.id !== pendingDeleteId);
+            saveOrders();
+            closeDeleteModal();
+            closeDetail();
+            showToast('订单已删除');
+        }
+
+        function toggleSection(header) {
+            header.parentElement.classList.toggle('expand');
+        }
+
+        function toggleTask(sectionId, taskIdx, event) {
+            event.stopPropagation();
+            const order = orders.find(o => o.id === currentOrderId);
+            if (!order) return;
+
+            if (!order.sections[sectionId]) {
+                order.sections[sectionId] = { tasks: {} };
+            }
+            if (!order.sections[sectionId].tasks[taskIdx]) {
+                order.sections[sectionId].tasks[taskIdx] = { done: false };
+            }
+            order.sections[sectionId].tasks[taskIdx].done = !order.sections[sectionId].tasks[taskIdx].done;
+
+            saveOrders();
+
+            // Update UI
+            const taskItem = event.target.closest('.task-item');
+            const checkbox = event.target;
+            const taskName = taskItem.querySelector('.task-name');
+
+            if (order.sections[sectionId].tasks[taskIdx].done) {
+                checkbox.classList.add('done');
+                checkbox.textContent = '✓';
+                taskItem.classList.add('done');
+            } else {
+                checkbox.classList.remove('done');
+                checkbox.textContent = '';
+                taskItem.classList.remove('done');
+            }
+
+            // Update section progress
+            const tasks = getSectionTasks(sectionId, order);
+            const sec = order.sections[sectionId].tasks || {};
+            const done = Object.values(sec).filter(t => t.done).length;
+            const pct = Math.round((done / tasks.length) * 100);
+            const barColor = pct >= 100 ? 'var(--status-done)' : pct >= 50 ? 'var(--status-progress)' : 'var(--status-todo)';
+
+            const progressDiv = taskItem.closest('.task-section').querySelector('.task-section-progress');
+            progressDiv.querySelector('.mini-bar-fill').style.width = pct + '%';
+            progressDiv.querySelector('.mini-bar-fill').style.background = barColor;
+            progressDiv.querySelector('.task-section-count').textContent = `${done}/${section.tasks.length}`;
+
+            showToast(order.sections[sectionId].tasks[taskIdx].done ? '✓ 已完成' : '○ 已取消');
+        }
+
+        // ====== 模板管理 ======
+        function openTemplateModal() {
+            const template = getTemplate();
+            const container = document.getElementById('templateSections');
+            container.innerHTML = template.map((section, sectionIdx) => `
+                <div class="task-section expand" data-section="${section.id}">
+                    <div class="task-section-header" onclick="toggleTemplateSection(this)">
+                        <span class="task-section-title editable" onclick="event.stopPropagation(); editSectionName('${section.id}', this)">${section.icon} ${section.name}</span>
+                        <div style="display:flex; gap:8px; align-items:center;">
+                            <span class="task-section-count">${section.tasks.length}个小项</span>
+                            <button class="btn btn-sm btn-secondary" onclick="event.stopPropagation(); editSectionName('${section.id}')" title="编辑名称">✏️</button>
+                            <button class="btn btn-sm btn-danger" onclick="event.stopPropagation(); deleteSection('${section.id}')" title="删除整个阶段">🗑️</button>
+                        </div>
+                    </div>
+                    <div class="task-list" id="template_tasks_${section.id}">
+                        ${section.tasks.map((taskName, idx) => `
+                            <div class="task-item">
+                                <div class="task-content" style="flex:1;">
+                                    <div class="task-name editable" 
+                                         onclick="editTemplateTask(this, '${section.id}', ${idx})"
+                                         data-section="${section.id}" 
+                                         data-idx="${idx}">${taskName}</div>
+                                </div>
+                                <button class="task-edit-btn" onclick="editTemplateTask(this.previousElementSibling.querySelector('.task-name'), '${section.id}', ${idx})">✏️</button>
+                                <button class="task-delete-btn" onclick="deleteTemplateTask('${section.id}', ${idx})">🗑️</button>
+                            </div>
+                        `).join('')}
+                        <div class="add-task-btn" onclick="addTemplateTask('${section.id}')">
+                            <span>+</span> 新增小项
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            document.getElementById('templateModal').classList.add('active');
+        }
+        
+        function editSectionName(sectionId, el) {
+            const template = getTemplate();
+            const section = template.find(s => s.id === sectionId);
+            if (!section) return;
+            
+            const currentName = section.name;
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'form-input';
+            input.value = currentName;
+            input.style.cssText = 'padding: 4px 8px; font-size: 14px; margin-left: 8px; width: 150px;';
+            
+            const save = () => {
+                const newName = input.value.trim();
+                if (newName && newName !== currentName) {
+                    section.name = newName;
+                    if (el) {
+                        el.textContent = section.icon + ' ' + newName;
+                    }
+                    showToast('阶段名称已修改');
+                }
+                if (el && !input.parentElement) {
+                    // 只在没替换的情况下还原
+                }
+                input.remove();
+            };
+            
+            input.addEventListener('blur', save);
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+                else if (e.key === 'Escape') { input.remove(); }
+            });
+            
+            if (el) {
+                el.style.display = 'none';
+                el.parentElement.insertBefore(input, el);
+            } else {
+                // 通过按钮触发，弹出prompt
+                const newName = prompt('修改阶段名称:', currentName);
+                if (newName && newName.trim() && newName.trim() !== currentName) {
+                    section.name = newName.trim();
+                    openTemplateModal();
+                    showToast('阶段名称已修改');
+                }
+                return;
+            }
+            input.focus();
+        }
+        
+        function deleteSection(sectionId) {
+            const template = getTemplate();
+            const section = template.find(s => s.id === sectionId);
+            if (!section) return;
+            
+            if (confirm(`确定要删除阶段"${section.name}"吗？删除后，新建订单时将不再包含这个阶段。`)) {
+                const idx = template.findIndex(s => s.id === sectionId);
+                if (idx !== -1) {
+                    template.splice(idx, 1);
+                    openTemplateModal();
+                    showToast(`已删除阶段"${section.name}"`);
+                }
+            }
+        }
+
+        function toggleTemplateSection(header) {
+            header.parentElement.classList.toggle('expand');
+        }
+
+        function editTemplateTask(el, sectionId, idx) {
+            const currentName = el.textContent;
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'task-name-input';
+            input.value = currentName;
+            
+            const saveAndClose = () => {
+                const newName = input.value.trim();
+                if (newName && newName !== currentName) {
+                    const template = getTemplate();
+                    const section = template.find(s => s.id === sectionId);
+                    if (section) {
+                        section.tasks[idx] = newName;
+                        el.textContent = newName;
+                    }
+                } else {
+                    el.textContent = currentName;
+                }
+                el.style.display = 'inline';
+                input.remove();
+            };
+
+            input.addEventListener('blur', saveAndClose);
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    input.blur();
+                } else if (e.key === 'Escape') {
+                    el.textContent = currentName;
+                    el.style.display = 'inline';
+                    input.remove();
+                }
+            });
+
+            el.style.display = 'none';
+            el.parentElement.insertBefore(input, el);
+            input.focus();
+            input.setSelectionRange(input.value.length, input.value.length);
+        }
+
+        function addTemplateTask(sectionId) {
+            const template = getTemplate();
+            const section = template.find(s => s.id === sectionId);
+            if (section) {
+                section.tasks.push('新小项');
+                openTemplateModal();
+                showToast('新小项已添加');
+            }
+        }
+
+        function deleteTemplateTask(sectionId, idx) {
+            const template = getTemplate();
+            const section = template.find(s => s.id === sectionId);
+            if (section && section.tasks.length > 1) {
+                section.tasks.splice(idx, 1);
+                openTemplateModal();
+                showToast('小项已删除');
+            } else if (section && section.tasks.length <= 1) {
+                showToast('至少保留一个小项', false);
+            }
+        }
+
+        function closeTemplateModal() {
+            document.getElementById('templateModal').classList.remove('active');
+        }
+
+        function saveTemplate() {
+            const template = getTemplate();
+            localStorage.setItem('orderTemplate', JSON.stringify(template));
+            closeTemplateModal();
+            showToast('模板已保存');
+        }
+
+        function resetTemplate() {
+            if (confirm('确定恢复默认模板吗？')) {
+                localStorage.removeItem('orderTemplate');
+                currentTemplate = JSON.parse(JSON.stringify(DEFAULT_TEMPLATE));
+                closeTemplateModal();
+                showToast('已恢复默认模板');
+            }
+        }
+
+        // ====== 联系人管理 ======
+        const DEFAULT_CONTACTS = ['张三', '李四', '王五', '赵六'];
+
+        function getContacts() {
+            const saved = localStorage.getItem('orderContacts');
+            return saved ? JSON.parse(saved) : DEFAULT_CONTACTS;
+        }
+
+        function saveContacts(contacts) {
+            localStorage.setItem('orderContacts', JSON.stringify(contacts));
+        }
+
+        function openContactsModal() {
+            renderContactsList();
+            document.getElementById('contactsModal').classList.add('active');
+        }
+
+        function closeContactsModal() {
+            document.getElementById('contactsModal').classList.remove('active');
+        }
+
+        function renderContactsList() {
+            const contacts = getContacts();
+            const container = document.getElementById('contactsList');
+            if (contacts.length === 0) {
+                container.innerHTML = '<p style="color: var(--text-secondary); text-align: center;">暂无联系人</p>';
+                return;
+            }
+            container.innerHTML = contacts.map((c, i) => `
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:10px; background:var(--bg-main); border-radius:8px; margin-bottom:8px;">
+                    <span>👤 ${escapeHtml(c)}</span>
+                    <button class="btn btn-secondary btn-sm" onclick="deleteContact(${i})" style="color:var(--status-overdue);">删除</button>
+                </div>
+            `).join('');
+        }
+
+        function addContact() {
+            const name = document.getElementById('newContactInput').value.trim();
+            if (!name) return;
+            const contacts = getContacts();
+            if (!contacts.includes(name)) {
+                contacts.push(name);
+                saveContacts(contacts);
+                renderContactsList();
+                document.getElementById('newContactInput').value = '';
+                showToast('已添加');
+            }
+        }
+
+        function deleteContact(index) {
+            const contacts = getContacts();
+            contacts.splice(index, 1);
+            saveContacts(contacts);
+            renderContactsList();
+            showToast('已删除');
+        }
+
+        // ====== 模态框 ======
+        let editingOrderId = null;
+
+        function openAddModal() {
+            editingOrderId = null;
+            document.getElementById('modalTitle').textContent = '新增订单';
+            document.getElementById('orderForm').reset();
+            document.getElementById('editOrderId').value = '';
+            document.getElementById('orderDate').value = new Date().toISOString().split('T')[0];
+            
+            // 初始化阶段列表（新增订单显示空提示）
+            const tempOrder = { sections: {} };
+            renderOrderSections(tempOrder);
+            
+            document.getElementById('orderModal').classList.add('active');
+        }
+
+        function openEditModal() {
+            if (!currentOrderId) return;
+            const order = orders.find(o => o.id === currentOrderId);
+            if (!order) return;
+
+            editingOrderId = currentOrderId;
+            document.getElementById('modalTitle').textContent = '编辑订单';
+            document.getElementById('editOrderId').value = order.id;
+            document.getElementById('customerName').value = order.customerName;
+            document.getElementById('productName').value = order.productName;
+            document.getElementById('quantity').value = order.quantity || '';
+            document.getElementById('orderDate').value = order.orderDate || '';
+            document.getElementById('deliveryDate').value = order.deliveryDate;
+            document.getElementById('projectOwner').value = order.projectOwner || '';
+            document.getElementById('remark').value = order.remark || '';
+
+            // 渲染阶段列表
+            renderOrderSections(order);
+
+            closeDetail();
+            document.getElementById('orderModal').classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('orderModal').classList.remove('active');
+        }
+
+        // 渲染订单阶段列表
+        function renderOrderSections(order) {
+            const container = document.getElementById('orderSectionsList');
+            if (!order.sections || Object.keys(order.sections).length === 0) {
+                container.innerHTML = '<p style="color: var(--text-secondary); font-size: 13px;">暂无阶段，点击下方按钮添加</p>';
+                return;
+            }
+
+            const template = getTemplate();
+            container.innerHTML = Object.entries(order.sections).map(([sectionId, section]) => {
+                const templateSection = template.find(s => s.id === sectionId);
+                const sectionName = section.sectionName || templateSection?.name || sectionId;
+
+                // 获取任务列表 - 兼容两种格式
+                let taskList = [];
+                if (section.customTasks && section.customTasks.length > 0) {
+                    // customTasks 是数组，存储任务名称
+                    taskList = section.customTasks.map((name, idx) => ({
+                        name: typeof name === 'string' ? name : name.name || `任务${idx + 1}`,
+                        done: section.tasks?.[idx]?.done || false
+                    }));
+                }
+
+                return `
+                    <div class="order-section-card">
+                        <div class="order-section-header">
+                            <span class="order-section-name">${escapeHtml(sectionName)}</span>
+                            <div class="order-section-actions">
+                                <button class="btn btn-sm btn-secondary" onclick="editOrderSectionNameInModal('${sectionId}')" title="编辑名称">✏️</button>
+                                <button class="btn btn-sm btn-danger" onclick="deleteOrderSectionInModal('${sectionId}')" title="删除阶段">🗑️</button>
+                            </div>
+                        </div>
+                        <div class="order-section-tasks">
+                            ${taskList.map((task, idx) => `
+                                <div class="order-section-task">
+                                    <input type="checkbox" ${task.done ? 'checked' : ''} onchange="toggleTaskInModal('${sectionId}', ${idx})">
+                                    <span class="order-section-task-name" style="${task.done ? 'text-decoration: line-through; opacity: 0.5;' : ''}">${escapeHtml(task.name)}</span>
+                                    <div class="order-section-task-actions">
+                                        <button onclick="editTaskInModal('${sectionId}', ${idx})">✏️</button>
+                                        <button onclick="deleteTaskInModal('${sectionId}', ${idx})">🗑️</button>
+                                    </div>
+                                </div>
+                            `).join('')}
+                            <div class="order-add-task-btn" onclick="addTaskToSectionInModal('${sectionId}')">
+                                <span>➕</span> 新增小项
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // 新增大项
+        function addOrderSection() {
+            const template = getTemplate();
+            
+            // 如果有模板，显示选择菜单；如果没有，直接输入自定义名称
+            if (template.length > 0) {
+                const sectionNames = template.map(s => s.name);
+                const choice = prompt(`选择阶段类型（输入数字）：\n${sectionNames.map((n, i) => `${i + 1}. ${n}`).join('\n')}\n\n或者直接输入自定义名称`);
+                
+                if (!choice) return;
+                const trimmed = choice.trim();
+                
+                // 检查是否是数字
+                if (/^\d+$/.test(trimmed)) {
+                    const idx = parseInt(trimmed) - 1;
+                    if (idx < 0 || idx >= template.length) {
+                        alert('无效的选择');
+                        return;
+                    }
+                    const selectedSection = template[idx];
+                    addSectionToCurrentOrder(selectedSection.id, selectedSection.name, selectedSection.tasks);
+                    return;
+                }
+                // 否则使用输入的自定义名称
+                addSectionToCurrentOrder('custom_' + Date.now(), trimmed, []);
+            } else {
+                // 没有模板，直接输入自定义名称
+                const customName = prompt('请输入大项名称（如：报价办、生产办）：');
+                if (!customName || !customName.trim()) return;
+                addSectionToCurrentOrder('custom_' + Date.now(), customName.trim(), []);
+            }
+        }
+
+        // 从详情面板新增大项
+        function addSectionFromDetail() {
+            if (!currentOrderId) return;
+            const order = orders.find(o => o.id === currentOrderId);
+            if (!order) return;
+
+            const template = getTemplate();
+            
+            if (template.length > 0) {
+                const sectionNames = template.map(s => s.name);
+                const choice = prompt(`选择阶段类型（输入数字）：\n${sectionNames.map((n, i) => `${i + 1}. ${n}`).join('\n')}\n\n或者直接输入自定义名称`);
+                
+                if (!choice) return;
+                const trimmed = choice.trim();
+                
+                if (/^\d+$/.test(trimmed)) {
+                    const idx = parseInt(trimmed) - 1;
+                    if (idx < 0 || idx >= template.length) {
+                        alert('无效的选择');
+                        return;
+                    }
+                    const selectedSection = template[idx];
+                    addSectionDirectly(currentOrderId, selectedSection.id, selectedSection.name, selectedSection.tasks);
+                } else {
+                    addSectionDirectly(currentOrderId, 'custom_' + Date.now(), trimmed, []);
+                }
+            } else {
+                const customName = prompt('请输入大项名称（如：报价办、生产办）：');
+                if (!customName || !customName.trim()) return;
+                addSectionDirectly(currentOrderId, 'custom_' + Date.now(), customName.trim(), []);
+            }
+        }
+
+        // 直接添加阶段到指定订单
+        function addSectionDirectly(orderId, sectionId, sectionName, tasks = []) {
+            const order = orders.find(o => o.id === orderId);
+            if (!order) return;
+
+            if (!order.sections) order.sections = {};
+            if (order.sections[sectionId]) {
+                alert('该阶段已存在');
+                return;
+            }
+
+            const customTasks = tasks.map(t => typeof t === 'string' ? t : t.name);
+
+            order.sections[sectionId] = {
+                sectionName: sectionName,
+                tasks: {},
+                customTasks: customTasks
+            };
+            saveOrders();
+            showToast('已添加：' + sectionName);
+            
+            // 刷新详情面板
+            openDetail(orderId);
+        }
+
+        function addSectionToCurrentOrder(sectionId, sectionName, tasks = []) {
+            const order = orders.find(o => o.id === editingOrderId);
+            if (!order) return;
+
+            if (!order.sections) order.sections = {};
+            if (order.sections[sectionId]) {
+                alert('该阶段已存在');
+                return;
+            }
+
+            // 初始化 tasks 状态对象和 customTasks 数组
+            const tasksObj = {};
+            const customTasks = tasks.map(t => typeof t === 'string' ? t : t.name);
+
+            order.sections[sectionId] = {
+                sectionName: sectionName,
+                tasks: tasksObj,
+                customTasks: customTasks
+            };
+            saveOrders();
+            renderOrderSections(order);
+            showToast('已添加：' + sectionName);
+        }
+
+        // 编辑阶段名称
+        function editOrderSectionNameInModal(sectionId) {
+            const order = orders.find(o => o.id === editingOrderId);
+            if (!order || !order.sections[sectionId]) return;
+
+            const currentName = order.sections[sectionId].sectionName || sectionId;
+            const newName = prompt('修改阶段名称：', currentName);
+            if (newName && newName.trim()) {
+                order.sections[sectionId].sectionName = newName.trim();
+                saveOrders();
+                renderOrderSections(order);
+            }
+        }
+
+        // 删除阶段
+        function deleteOrderSectionInModal(sectionId) {
+            if (!confirm('确定要删除这个阶段？')) return;
+            const order = orders.find(o => o.id === editingOrderId);
+            if (!order) return;
+
+            delete order.sections[sectionId];
+            saveOrders();
+            renderOrderSections(order);
+            showToast('已删除');
+        }
+
+        // 添加小项
+        function addTaskToSectionInModal(sectionId) {
+            const taskName = prompt('请输入小项名称：');
+            if (!taskName || !taskName.trim()) return;
+
+            const order = orders.find(o => o.id === editingOrderId);
+            if (!order || !order.sections[sectionId]) return;
+
+            // 初始化
+            if (!order.sections[sectionId].customTasks) {
+                order.sections[sectionId].customTasks = [];
+            }
+            if (!order.sections[sectionId].tasks) {
+                order.sections[sectionId].tasks = {};
+            }
+
+            const idx = order.sections[sectionId].customTasks.length;
+            order.sections[sectionId].customTasks.push(taskName.trim());
+            order.sections[sectionId].tasks[idx] = { done: false, person: '', deadline: '' };
+
+            saveOrders();
+            renderOrderSections(order);
+        }
+
+        // 编辑小项
+        function editTaskInModal(sectionId, taskIdx) {
+            const order = orders.find(o => o.id === editingOrderId);
+            if (!order || !order.sections[sectionId]) return;
+
+            const currentName = order.sections[sectionId].customTasks?.[taskIdx] || '';
+            const newName = prompt('修改小项名称：', currentName);
+            if (newName && newName.trim()) {
+                if (!order.sections[sectionId].customTasks) {
+                    order.sections[sectionId].customTasks = [];
+                }
+                order.sections[sectionId].customTasks[taskIdx] = newName.trim();
+                saveOrders();
+                renderOrderSections(order);
+            }
+        }
+
+        // 删除小项
+        function deleteTaskInModal(sectionId, taskIdx) {
+            if (!confirm('确定要删除这个小项？')) return;
+            const order = orders.find(o => o.id === editingOrderId);
+            if (!order || !order.sections[sectionId]) return;
+
+            // 从 customTasks 删除
+            if (order.sections[sectionId].customTasks) {
+                order.sections[sectionId].customTasks.splice(taskIdx, 1);
+            }
+            // 从 tasks 删除
+            if (order.sections[sectionId].tasks) {
+                delete order.sections[sectionId].tasks[taskIdx];
+            }
+
+            saveOrders();
+            renderOrderSections(order);
+            showToast('已删除');
+        }
+
+        // 切换小项完成状态
+        function toggleTaskInModal(sectionId, taskIdx) {
+            const order = orders.find(o => o.id === editingOrderId);
+            if (!order || !order.sections[sectionId]) return;
+
+            if (!order.sections[sectionId].tasks) {
+                order.sections[sectionId].tasks = {};
+            }
+            if (!order.sections[sectionId].tasks[taskIdx]) {
+                order.sections[sectionId].tasks[taskIdx] = { done: false, person: '', deadline: '' };
+            }
+
+            order.sections[sectionId].tasks[taskIdx].done = !order.sections[sectionId].tasks[taskIdx].done;
+            saveOrders();
+            renderOrderSections(order);
+        }
+
+        function saveOrder() {
+            const customerName = document.getElementById('customerName').value.trim();
+            const productName = document.getElementById('productName').value.trim();
+            const quantity = document.getElementById('quantity').value;
+            const orderDate = document.getElementById('orderDate').value;
+            const deliveryDate = document.getElementById('deliveryDate').value;
+            const projectOwner = document.getElementById('projectOwner').value.trim();
+            const remark = document.getElementById('remark').value.trim();
+
+            if (!productName || !deliveryDate) {
+                showToast('请填写产品名称和交货日期', false);
+                return;
+            }
+
+            const template = getTemplate();
+
+            if (editingOrderId) {
+                // 编辑模式
+                const order = orders.find(o => o.id === editingOrderId);
+                if (order) {
+                    order.customerName = customerName;
+                    order.productName = productName;
+                    order.quantity = parseInt(quantity) || 0;
+                    order.orderDate = orderDate;
+                    order.deliveryDate = deliveryDate;
+                    order.projectOwner = projectOwner;
+                    order.remark = remark;
+                }
+                showToast('订单已更新');
+            } else {
+                // 新增模式 - 使用模板默认小项
+                const sectionsData = {};
+                template.forEach(section => {
+                    sectionsData[section.id] = {
+                        tasks: {}
+                    };
+                });
+                const newOrder = {
+                    id: generateOrderId(),
+                    customerName,
+                    productName,
+                    quantity: parseInt(quantity) || 0,
+                    orderDate,
+                    deliveryDate,
+                    projectOwner,
+                    remark,
+                    sections: sectionsData,
+                    createdAt: new Date().toISOString()
+                };
+                orders.push(newOrder);
+                showToast('订单已添加');
+            }
+
+            saveOrders();
+            renderOrders();
+            updateStats();
+            closeModal();
+        }
+
+        // ====== 工具函数 ======
+        function getSectionTasks(sectionId, order) {
+            // 优先使用订单自定义的小项名称
+            if (order?.sections?.[sectionId]?.customTasks) {
+                return order.sections[sectionId].customTasks;
+            }
+            // 否则使用模板配置
+            const template = getTemplate();
+            const section = template.find(s => s.id === sectionId);
+            return section ? section.tasks : [];
+        }
+
+        function calcOverallProgress(order) {
+            let totalTasks = 0;
+            let doneTasks = 0;
+            
+            // 获取订单实际有的阶段（而不是所有模板阶段）
+            const orderSectionIds = Object.keys(order.sections || {});
+            
+            if (orderSectionIds.length === 0) {
+                // 如果订单没有导入数据，用模板计算
+                getTemplate().forEach(s => {
+                    const tasks = getSectionTasks(s.id, order);
+                    totalTasks += tasks.length;
+                    const sec = order.sections?.[s.id]?.tasks || {};
+                    doneTasks += Object.values(sec).filter(t => t.done).length;
+                });
+            } else {
+                // 只计算订单实际导入的阶段
+                orderSectionIds.forEach(sectionId => {
+                    const tasks = getSectionTasks(sectionId, order);
+                    totalTasks += tasks.length;
+                    const sec = order.sections?.[sectionId]?.tasks || {};
+                    doneTasks += Object.values(sec).filter(t => t.done).length;
+                });
+            }
+            
+            return totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
+        }
+
+        function isOverdue(order) {
+            if (calcOverallProgress(order) >= 100) return false;
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const delivery = new Date(order.deliveryDate);
+            delivery.setHours(0, 0, 0, 0);
+            return delivery < today;
+        }
+
+        function getDaysLeft(order) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const delivery = new Date(order.deliveryDate);
+            delivery.setHours(0, 0, 0, 0);
+            return Math.ceil((delivery - today) / (1000 * 60 * 60 * 24));
+        }
+
+        function getDaysLabel(order) {
+            const days = getDaysLeft(order);
+            if (days < 0) return `已逾期 ${Math.abs(days)} 天`;
+            if (days === 0) return '今天截止';
+            return `还剩 ${days} 天`;
+        }
+
+        function getDaysBadgeClass(order) {
+            const days = getDaysLeft(order);
+            if (days < 0 || days < 7) return 'danger';
+            if (days <= 15) return 'warning';
+            return 'safe';
+        }
+
+        function getTaskDeadlineInfo(deadline) {
+            if (!deadline) return null;
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const due = new Date(deadline);
+            due.setHours(0, 0, 0, 0);
+            const days = Math.ceil((due - today) / (1000 * 60 * 60 * 24));
+            if (days < 0) return { text: `已逾期${Math.abs(days)}天`, class: 'overdue-tag' };
+            if (days === 0) return { text: '今天截止', class: 'overdue-tag' };
+            if (days <= 3) return { text: `还剩${days}天`, class: 'overdue-tag' };
+            if (days <= 7) return { text: `还剩${days}天`, class: '' };
+            return { text: `还剩${days}天`, class: '' };
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function showToast(msg) {
+            const existing = document.querySelector('.toast');
+            if (existing) existing.remove();
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.textContent = msg;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 2000);
+        }
+
+        // ====== Excel导出 ======
+        function openExportModal() {
+            const container = document.getElementById('exportOrderList');
+            container.innerHTML = orders.map(order => `
+                <label style="display: flex; align-items: center; gap: 8px; padding: 10px; border-bottom: 1px solid var(--border-color); cursor: pointer;">
+                    <input type="checkbox" class="export-order-checkbox" value="${order.id}" style="width: 16px; height: 16px;">
+                    <div style="flex: 1;">
+                        <div style="font-weight: 500;">${escapeHtml(order.productName)}</div>
+                        <div style="font-size: 12px; color: var(--text-secondary);">${escapeHtml(order.customerName || '未填写')}</div>
+                    </div>
+                </label>
+            `).join('');
+            document.getElementById('exportSelectAll').checked = false;
+            document.getElementById('exportModal').classList.add('active');
+        }
+        
+        function closeExportModal() {
+            document.getElementById('exportModal').classList.remove('active');
+        }
+        
+        function toggleExportAll(el) {
+            document.querySelectorAll('.export-order-checkbox').forEach(cb => {
+                cb.checked = el.checked;
+            });
+        }
+        
+        function doExportSelected() {
+            const selectedIds = Array.from(document.querySelectorAll('.export-order-checkbox:checked'))
+                .map(cb => cb.value);
+            closeExportModal();
+            
+            if (selectedIds.length === 0) {
+                showToast('请选择要导出的订单', false);
+                return;
+            }
+            
+            const selectedOrders = orders.filter(o => selectedIds.includes(o.id));
+            exportToExcel(selectedOrders);
+        }
+        
+        function exportToExcel(ordersToExport) {
+            if (!ordersToExport) ordersToExport = orders;
+            if (ordersToExport.length === 0) {
+                showToast('没有可导出的订单', false);
+                return;
+            }
+            
+            const template = getTemplate();
+            const wb = XLSX.utils.book_new();
+
+            // Sheet1: 订单概览
+            const overviewData = [
+                ['客户名称', '产品名称', '数量', '下单日期', '交货日期', '备注',
+                 ...template.map(s => `${s.icon}${s.name}进度`)]
+            ];
+            ordersToExport.forEach(order => {
+                const row = [
+                    order.customerName, order.productName,
+                    order.quantity || '', order.orderDate || '', order.deliveryDate, order.remark || ''
+                ];
+                template.forEach(s => {
+                    const tasks = getSectionTasks(s.id, order);
+                    const sec = order.sections?.[s.id]?.tasks || {};
+                    const total = tasks.length;
+                    const done = Object.values(sec).filter(t => t.done).length;
+                    row.push(`${done}/${total}`);
+                });
+                overviewData.push(row);
+            });
+            const ws1 = XLSX.utils.aoa_to_sheet(overviewData);
+            ws1['!cols'] = [{ wch: 15 }, { wch: 25 }, { wch: 8 }, { wch: 12 }, { wch: 12 }, { wch: 20 },
+                ...template.map(() => ({ wch: 12 }))];
+            XLSX.utils.book_append_sheet(wb, ws1, '订单概览');
+
+            // Sheet2-8: 每个大项详情（含负责人和截止日期）
+            template.forEach((section, sIdx) => {
+                const headers = ['客户名称', '产品名称', '交货日期'];
+                section.tasks.forEach((t, i) => {
+                    headers.push(`任务${i + 1}`, '负责人', '截止日期');
+                });
+                const detailData = [headers];
+                ordersToExport.forEach(order => {
+                    const tasks = getSectionTasks(section.id, order);
+                    const sec = order.sections?.[section.id]?.tasks || {};
+                    const row = [order.customerName, order.productName, order.deliveryDate];
+                    tasks.forEach((t, i) => {
+                        const taskData = sec[i] || {};
+                        const done = taskData.done ? '✓' : '○';
+                        row.push(`${done} ${t}`, taskData.person || '', taskData.deadline || '');
+                    });
+                    detailData.push(row);
+                });
+                const ws = XLSX.utils.aoa_to_sheet(detailData);
+                const colWidths = [{ wch: 15 }, { wch: 25 }, { wch: 12 }, ...section.tasks.flatMap(() => [{ wch: 25 }, { wch: 10 }, { wch: 12 }])];
+                ws['!cols'] = colWidths;
+                XLSX.utils.book_append_sheet(wb, ws, `${sIdx + 1}-${section.name.slice(0, 8)}`);
+            });
+
+            const date = new Date().toISOString().split('T')[0];
+            XLSX.writeFile(wb, `订单数据_${date}.xlsx`);
+            showToast('Excel已导出');
+        }
+
+        function importFromExcel(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const template = getTemplate();
+
+                    // 从概览表读取
+                    const sheetName = workbook.SheetNames[0];
+                    const sheet = workbook.Sheets[sheetName];
+                    const jsonData = XLSX.utils.sheet_to_json(sheet);
+
+                    jsonData.forEach(row => {
+                        const productName = row['产品名称'] || row['产品名称 '] || '';
+                        if (!productName) return;
+
+                        let order = orders.find(o => o.productName === productName);
+                        if (!order) {
+                            order = {
+                                id: generateOrderId(),
+                                customerName: row['客户名称'] || row['客户名称 '] || '',
+                                productName: productName,
+                                quantity: parseInt(row['数量'] || row['数量 ']) || 0,
+                                orderDate: row['下单日期'] || row['下单日期 '] || '',
+                                deliveryDate: row['交货日期'] || row['交货日期 '] || '',
+                                remark: row['备注'] || row['备注 '] || '',
+                                sections: {},
+                                createdAt: new Date().toISOString()
+                            };
+                            orders.push(order);
+                        } else {
+                            order.customerName = row['客户名称'] || row['客户名称 '] || order.customerName;
+                            order.quantity = parseInt(row['数量'] || row['数量 ']) || order.quantity;
+                            order.orderDate = row['下单日期'] || row['下单日期 '] || order.orderDate;
+                            order.deliveryDate = row['交货日期'] || row['交货日期 '] || order.deliveryDate;
+                            order.remark = row['备注'] || row['备注 '] || order.remark;
+                        }
+
+                        // 从各阶段Sheet读取完成状态
+                        template.forEach((section, sIdx) => {
+                            const detailSheetName = workbook.SheetNames[sIdx + 1];
+                            if (!detailSheetName) return;
+                            const detailSheet = workbook.Sheets[detailSheetName];
+                            const detailData = XLSX.utils.sheet_to_json(detailSheet);
+                            const detailRow = detailData.find(r => (r['产品名称'] || r['产品名称 '] || '') === productName);
+                            if (detailRow) {
+                                const tasks = getSectionTasks(section.id, order);
+                                order.sections[section.id] = { tasks: {}, customTasks: [...tasks] };
+                                tasks.forEach((t, i) => {
+                                    const val = detailRow[`任务${i + 1}`] || detailRow[`任务${i + 1} `] || '';
+                                    order.sections[section.id].tasks[i] = { done: val.toString().includes('✓') };
+                                });
+                            }
+                        });
+                    });
+
+                    saveOrders();
+                    renderOrders();
+                    updateStats();
+                    showToast(`导入成功，共 ${orders.length} 个订单`);
+                } catch (err) {
+                    showToast('导入失败：' + err.message, false);
+                }
+            };
+            reader.readAsArrayBuffer(file);
+            event.target.value = '';
+        }
+
+        function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if (Array.isArray(data)) {
+                        orders = data;
+                        saveOrders();
+                        renderOrders();
+                        updateStats();
+                        showToast(`导入 ${orders.length} 个订单`);
+                    }
+                } catch (err) {
+                    showToast('导入失败', false);
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+
+        // ====== 钉钉数据导入 ======
+        function importFromDingtalk(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            // Excel文件用SheetJS读取，文本文件用文本方式读取
+            if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                        
+                        // 使用range跳过第一行（标题行"项目事件列表"），从第二行开始作为数据
+                        const jsonData = XLSX.utils.sheet_to_json(sheet, { 
+                            header: 1,
+                            range: 1  // 从第二行开始
+                        });
+                        
+                        // 第一行是表头
+                        const headers = jsonData[0];
+                        
+                        // 从第二行开始是数据
+                        const result = [];
+                        for (let i = 1; i < jsonData.length; i++) {
+                            const row = jsonData[i];
+                            if (!row || row.length === 0) continue;
+                            const obj = {};
+                            headers.forEach((h, idx) => {
+                                obj[h] = row[idx] || '';
+                            });
+                            result.push(obj);
+                        }
+                        
+                        processDingtalkData(result);
+                    } catch (err) {
+                        showToast('Excel解析失败：' + err.message, false);
+                        console.error(err);
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+            } else {
+                // 文本/CSV格式
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const content = e.target.result;
+                        const lines = content.split('\n').filter(line => line.trim());
+                        if (lines.length < 2) {
+                            showToast('文件内容为空', false);
+                            return;
+                        }
+                        const delimiter = lines[0].includes('\t') ? '\t' : ',';
+                        const headers = lines[0].split(delimiter).map(h => h.trim().replace(/^["']|["']$/g, ''));
+                        
+                        const hasProjectId = headers.some(h => h.includes('项目ID'));
+                        if (!hasProjectId) {
+                            showToast('不是钉钉导出的数据格式', false);
+                            return;
+                        }
+                        
+                        const jsonData = [];
+                        for (let i = 1; i < lines.length; i++) {
+                            const values = lines[i].split(delimiter).map(v => v.trim().replace(/^["']|["']$/g, ''));
+                            const row = {};
+                            headers.forEach((header, idx) => {
+                                row[header] = values[idx] || '';
+                            });
+                            jsonData.push(row);
+                        }
+                        processDingtalkData(jsonData);
+                    } catch (err) {
+                        showToast('文件解析失败：' + err.message, false);
+                    }
+                };
+                reader.readAsText(file);
+            }
+            event.target.value = '';
+        }
+        
+        function processDingtalkData(jsonData) {
+            // ====== 将所有值转换为字符串 ======
+            jsonData = jsonData.map(row => {
+                const newRow = {};
+                for (const key in row) {
+                    newRow[key] = String(row[key] || '');
+                }
+                return newRow;
+            });
+            
+            // ====== 检测列名格式并建立映射 ======
+            const firstRow = jsonData[0] || {};
+            const colMap = {};
+            
+            // 标准列名映射（用于兼容）
+            const standardNames = {
+                projectId: ['项目ID', '项目ID '],
+                projectName: ['项目名称', '项目名称 '],
+                projectOwner: ['项目负责人', '项目负责人 '],
+                projectCreateTime: ['项目创建时间', '项目创建时间 '],
+                stage: ['阶段', '阶段 '],
+                taskName: ['一级事件', '一级事件 '],
+                person: ['负责人(角色)', '负责人(角色) '],
+                endTime: ['结束时间', '结束时间 '],
+                status: ['事件状态', '事件状态 ']
+            };
+            
+            // 钉钉原始格式列名映射（__EMPTY格式）
+            const dingtalkNames = {
+                projectId: ['项目事件列表'],  // 项目ID
+                projectName: ['__EMPTY'],     // 项目名称
+                projectOwner: ['__EMPTY_2'],  // 项目负责人
+                projectCreateTime: ['__EMPTY_4'],  // 项目创建时间
+                stage: ['__EMPTY_6'],          // 阶段
+                taskName: ['__EMPTY_7'],       // 一级事件
+                person: ['__EMPTY_13'],        // 负责人(角色)
+                endTime: ['__EMPTY_15'],       // 结束时间
+                status: ['__EMPTY_17']         // 事件状态
+            };
+            
+            // 检测格式：看第一行是否有'项目ID'（标准格式）还是没有但有'项目事件列表'（钉钉格式）
+            const isStandardFormat = firstRow['项目ID'] || firstRow['项目ID '] || firstRow['一级事件'] || firstRow['一级事件 '];
+            const isDingtalkFormat = firstRow['项目事件列表'];
+            
+            // 优先使用标准格式，否则用钉钉格式
+            const nameMap = isStandardFormat ? standardNames : (isDingtalkFormat ? dingtalkNames : standardNames);
+            
+            // 建立从标准字段名到实际列名的映射
+            for (const field in nameMap) {
+                for (const colName of nameMap[field]) {
+                    if (firstRow[colName] !== undefined) {
+                        colMap[field] = colName;
+                        break;
+                    }
+                }
+            }
+            
+            // ====== 按项目ID分组 ======
+            const projectMap = {};
+            jsonData.forEach(row => {
+                const projectId = row[colMap.projectId] || '';
+                const taskName = row[colMap.taskName] || '';
+                
+                if (!projectId || !taskName) return;
+
+                if (!projectMap[projectId]) {
+                    let orderDate = row[colMap.projectCreateTime] || '';
+                    if (orderDate) {
+                        orderDate = orderDate.split(' ')[0].split('T')[0];
+                    }
+                    projectMap[projectId] = {
+                        productName: row[colMap.projectName] || '',
+                        projectOwner: row[colMap.projectOwner] || '',
+                        orderDate: orderDate,
+                        stages: [] // 收集所有不同的阶段名称
+                    };
+                }
+
+                const stage = (row[colMap.stage] || '').trim();
+                if (!stage) return;
+                
+                // 收集阶段名称（去重）
+                if (!projectMap[projectId].stages.includes(stage)) {
+                    projectMap[projectId].stages.push(stage);
+                }
+                
+                const person = row[colMap.person] || '';
+                let deadline = row[colMap.endTime] || '';
+                if (deadline) {
+                    deadline = deadline.split(' ')[0].split('T')[0];
+                    // 记录最晚的截止时间作为交货日期
+                    if (!projectMap[projectId].maxDeadline || deadline > projectMap[projectId].maxDeadline) {
+                        projectMap[projectId].maxDeadline = deadline;
+                    }
+                }
+                const status = row[colMap.status] || '';
+                const done = status.includes('完成');
+
+                if (!projectMap[projectId][stage]) {
+                    projectMap[projectId][stage] = [];
+                }
+                projectMap[projectId][stage].push({
+                    name: taskName,
+                    person: person,
+                    deadline: deadline,
+                    done: done
+                });
+            });
+
+            // ====== 转换为系统订单格式 ======
+            // 根据阶段名称生成唯一id
+            function getStageId(name) {
+                const pinyinMap = {
+                    '报价办': 'baojia', '生产办': 'shengchan', '放产资料': 'fangchan',
+                    '物料请购': 'wuliao', '物料申购': 'wuliao', '加工商确认': 'jiagong',
+                    '加工商生产跟进': 'genjin', '内部生产安排': 'neibu'
+                };
+                // 精确匹配
+                if (pinyinMap[name]) return pinyinMap[name];
+                // 模糊匹配：名称包含某个预设阶段
+                for (const [key, id] of Object.entries(pinyinMap)) {
+                    if (name.includes(key) || key.includes(name)) {
+                        return id;
+                    }
+                }
+                // 其他名称用前4个字符
+                let id = name.slice(0, 4).replace(/[^\w\u4e00-\u9fa5]/g, '');
+                return id || 'other';
+            }
+            
+            let importedCount = 0;
+            let newCount = 0;
+            
+            Object.values(projectMap).forEach(project => {
+                // 检查是否已存在同名项目
+                let order = orders.find(o => o.productName === project.productName);
+                const isNew = !order;
+                
+                if (isNew) {
+                    order = {
+                        id: generateOrderId(),
+                        customerName: '', // 客户名称留空，让用户自己填
+                        productName: project.productName,
+                        quantity: 0,
+                        orderDate: project.orderDate,
+                        deliveryDate: project.maxDeadline || '', // 用最晚截止时间作为交货日期
+                        projectOwner: project.projectOwner,
+                        remark: '',
+                        sections: {},
+                        createdAt: new Date().toISOString()
+                    };
+                    orders.push(order);
+                } else {
+                    // 更新已有订单的信息（不更新客户名称）
+                    order.orderDate = project.orderDate;
+                    order.deliveryDate = project.maxDeadline || ''; // 更新交货日期
+                    order.projectOwner = project.projectOwner;
+                    // 清空sections重新导入
+                    order.sections = {};
+                }
+                
+                // 直接用钉钉表格里的阶段名称创建大项
+                project.stages.forEach(stageName => {
+                    const stageId = getStageId(stageName);
+                    const stageTasks = project[stageName] || [];
+                    
+                    if (stageTasks.length > 0) {
+                        // 按截止日期排序
+                        stageTasks.sort((a, b) => {
+                            if (!a.deadline) return 1;
+                            if (!b.deadline) return -1;
+                            return a.deadline.localeCompare(b.deadline);
+                        });
+                        
+                        const taskNames = [];
+                        order.sections[stageId] = { tasks: {}, customTasks: [], sectionName: stageName };
+                        
+                        stageTasks.forEach((task, idx) => {
+                            taskNames.push(task.name);
+                            order.sections[stageId].tasks[idx] = {
+                                done: task.done,
+                                person: task.person,
+                                deadline: task.deadline
+                            };
+                        });
+                        
+                        order.sections[stageId].customTasks = taskNames;
+                    }
+                });
+
+                importedCount++;
+                if (isNew) newCount++;
+            });
+
+            saveOrders();
+            renderOrders();
+            updateStats();
+            showToast(`钉钉数据导入成功，新增 ${newCount} 个，更新 ${importedCount - newCount} 个`);
+        }
+
+        function getSectionIdByName(name) {
+            const template = getTemplate();
+            const section = template.find(s => s.name === name);
+            if (section) return section.id;
+            const lowerName = name.toLowerCase();
+            for (const s of template) {
+                if (s.name.includes(name) || lowerName.includes(s.name.slice(0, 4))) {
+                    return s.id;
+                }
+            }
+            return 'baojia';
+        }
+
+    </script>
+</body>
+</html>
