@@ -7,11 +7,19 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
-    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <script src="xlsx-js-style.min.js"></script>
+<script>
+if (typeof XLSX === 'undefined') {
+    document.write('<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"><\/script>');
+    console.warn('xlsx-js-style加载失败，已回退到原版SheetJS');
+} else {
+    console.log('xlsx-js-style 本地文件加载成功');
+}
+</script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         :root {
-            --primary: #EC4899;
+            --primary: #ec489abb;
             --primary-light: #F9A8D4;
             --primary-dark: #DB2777;
             --bg-main: #FFF5F7;
@@ -30,6 +38,7 @@
             background: var(--bg-main);
             color: var(--text-primary);
             min-height: 100vh;
+            overflow-x: hidden;
         }
         body.locked { overflow: hidden; }
         
@@ -103,7 +112,7 @@
             display: none;
         }
         
-        .container { max-width: 1600px; margin: 0 auto; padding: 24px; }
+        .container { max-width: 1600px; margin: 0 auto; padding: 24px; overflow: hidden; }
 
         /* Header */
         .header {
@@ -138,8 +147,8 @@
         }
         .main-tab:hover { color: var(--primary); background: var(--bg-card-hover); }
         .main-tab.active { color: var(--primary); border-bottom-color: var(--primary); background: var(--bg-card); }
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
+        .tab-content { display: none; overflow: hidden; }
+        .tab-content.active { display: block; overflow: visible; }
 
         /* Inventory Styles */
         .inventory-toolbar {
@@ -203,6 +212,28 @@
             color: var(--text-secondary);
         }
         .inventory-empty-icon { font-size: 48px; margin-bottom: 16px; }
+        
+        /* Shipment Tab Styles */
+        .shipment-stats { display: flex; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+        .shipment-stat { background: var(--bg-card); padding: 16px 24px; border-radius: 12px; display: flex; align-items: center; gap: 12px; border: 1px solid var(--border-color); }
+        .shipment-stat span { font-size: 28px; }
+        .shipment-stat-label { font-size: 13px; color: var(--text-secondary); }
+        .shipment-stat-value { font-size: 24px; font-weight: 700; color: var(--primary); }
+        .shipment-input-section { background: var(--bg-card); padding: 20px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--border-color); }
+        .shipment-textarea { width: 100%; min-height: 120px; padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 14px; resize: vertical; margin-bottom: 12px; }
+        .shipment-textarea:focus { outline: none; border-color: var(--primary); }
+        .shipment-actions { display: flex; gap: 10px; }
+        .shipment-summary-section { background: var(--bg-card); padding: 16px 20px; border-radius: 12px 12px 0 0; border: 1px solid var(--border-color); border-bottom: none; }
+        .shipment-summary-section .section-title { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+
+        .shipment-table-container { background: var(--bg-card); max-height: 500px; overflow-y: auto; border: 1px solid var(--border-color); border-top: none; border-radius: 0 0 12px 12px; }
+        .shipment-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+        .shipment-table th { background: var(--bg-main); padding: 12px 10px; text-align: left; font-size: 13px; font-weight: 600; color: var(--text-secondary); border-bottom: 1px solid var(--border-color); position: sticky; top: 0; z-index: 10; }
+        .shipment-table td { padding: 10px; border-bottom: 1px solid var(--border-color); font-size: 13px; }
+        .shipment-table tr:hover { background: var(--bg-card-hover); }
+        .sticky-col { position: sticky; left: 0; background: var(--bg-card); z-index: 5; }
+        .shipment-table th.sticky-col { background: var(--bg-main); z-index: 15; }
+        
         .inventory-stats {
             display: flex;
             gap: 16px;
@@ -243,6 +274,158 @@
         .btn-secondary:hover { background: var(--bg-card-hover); }
         .btn-sm { padding: 6px 12px; font-size: 12px; }
         .btn-danger { background: var(--status-overdue); color: white; }
+        .btn-success { background: #28a745; color: white; }
+        .btn-success:hover { background: #218838; }
+        .btn-info { background: #5DADE2; color: white; }
+        .btn-info:hover { background: #3498DB; }
+
+        /* Reconciliation Styles */
+        .reconciliation-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+        .reconciliation-header h2 {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        .reconciliation-filter {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .reconciliation-filter input[type="date"] {
+            padding: 8px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 14px;
+        }
+        .reconciliation-filter input[type="text"] {
+            padding: 8px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 14px;
+        }
+        .reconciliation-filter input[type="text"]:focus {
+            border-color: var(--primary);
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(236, 72, 153, 0.1);
+        }
+        .reconciliation-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .recon-card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 16px 20px;
+            border: 1px solid var(--border-color);
+            transition: all 0.2s;
+        }
+        .recon-card:hover {
+            border-color: var(--primary-light);
+            box-shadow: 0 2px 8px rgba(236, 72, 153, 0.1);
+        }
+        .recon-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .recon-date {
+            font-weight: 600;
+            font-size: 16px;
+            color: var(--text-primary);
+        }
+        .recon-time {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+        .recon-summary {
+            display: flex;
+            gap: 24px;
+            margin-bottom: 12px;
+        }
+        .recon-summary-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .recon-summary-item .num {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 600;
+            color: var(--primary);
+        }
+        .recon-products {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .recon-product-tag {
+            background: var(--bg-main);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+        .recon-product-tag strong {
+            color: var(--text-primary);
+        }
+
+        /* Reconciliation Detail Table */
+        .recon-detail-section {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid var(--border-color);
+        }
+        .recon-detail-section h3 {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: var(--text-primary);
+        }
+        .table-wrapper {
+            overflow-x: auto;
+        }
+        .recon-detail-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        .recon-detail-table th,
+        .recon-detail-table td {
+            padding: 10px 12px;
+            text-align: center;
+            border: 1px solid var(--border-color);
+            white-space: nowrap;
+        }
+        .recon-detail-table th {
+            background: var(--primary-light);
+            color: white;
+            font-weight: 600;
+        }
+        .recon-detail-table tbody tr:nth-child(even) {
+            background: var(--bg-main);
+        }
+        .recon-detail-table tbody tr:hover {
+            background: var(--bg-card-hover);
+        }
+        .recon-detail-table .remark-cell:hover {
+            background: #FFFACD;
+            cursor: default;
+        }
 
         /* Stats Row with Actions */
         .stats-row-wrapper {
@@ -480,17 +663,18 @@
         .detail-panel {
             position: fixed;
             top: 0;
-            right: -600px;
+            right: 0;
             width: 100%;
             max-width: 580px;
             height: 100vh;
             background: var(--bg-card);
             border-left: 1px solid var(--border-color);
             z-index: 101;
-            transition: right 0.3s ease;
-            overflow-y: auto;
+            transition: transform 0.3s ease;
+            transform: translateX(100%);
+            overflow: hidden;
         }
-        .detail-panel.active { right: 0; }
+        .detail-panel.active { transform: translateX(0); overflow-y: auto; }
 
         .detail-header {
             padding: 24px;
@@ -956,6 +1140,8 @@
         <div class="main-tabs">
             <div class="main-tab active" data-tab="orders" onclick="switchMainTab('orders')">📋 订单管理</div>
             <div class="main-tab" data-tab="inventory" onclick="switchMainTab('inventory')">📦 库存看板</div>
+            <div class="main-tab" data-tab="shipment" onclick="switchMainTab('shipment')">🚚 发货解析</div>
+            <div class="main-tab" data-tab="reconciliation" onclick="switchMainTab('reconciliation')">📊 出货对账</div>
         </div>
 
         <!-- Orders Tab -->
@@ -1026,6 +1212,147 @@
         </div>
         </div><!-- end tab-orders -->
 
+        <!-- Shipment Tab -->
+        <div class="tab-content" id="tab-shipment">
+            <div class="shipment-input-section" style="display: flex; align-items: flex-start; gap: 12px;">
+                <textarea id="shipmentInput" class="shipment-textarea" style="flex: 1; max-width: 70%;" placeholder="粘贴发货信息..."></textarea>
+                <button class="btn btn-primary" onclick="parseShipment()" style="white-space: nowrap;">📋 解析发货信息</button>
+            </div>
+            <div class="shipment-summary-section">
+                <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 8px;">
+                    <span style="color: var(--primary); font-weight: 600;">总箱数：<span id="shipmentTotalBoxes2">0</span></span>
+                    <span style="color: var(--primary); font-weight: 600;">总个数：<span id="shipmentTotalPieces2">0</span></span>
+                    <span style="width: 1px; height: 20px; background: var(--border-color); margin: 0 4px;"></span>
+                    <button class="btn btn-sm btn-danger" onclick="deleteSelectedShipments()">🗑️ 删除选中</button>
+                    <button class="btn btn-sm btn-primary" onclick="exportShipment()">📤 导出今日汇总</button>
+                    <button class="btn btn-sm btn-success" onclick="generateShipmentNotice()">📋 生成出货通知</button>
+                </div>
+            </div>
+            <div class="shipment-table-container">
+                <table class="shipment-table">
+                    <thead>
+                        <tr>
+                            <th width="40"><input type="checkbox" id="selectAll" onchange="toggleSelectAll(this.checked)"></th>
+                            <th>序号</th>
+                            <th>品名</th>
+                            <th>箱数</th>
+                            <th>总个数</th>
+                            <th>总体积</th>
+                            <th>操作时间</th>
+                            <th>备注</th>
+                            <th>备注1</th>
+                            <th>备注2</th>
+                        </tr>
+                    </thead>
+                    <tbody id="shipmentSummaryBody"></tbody>
+                </table>
+                <div id="shipmentEmpty" class="empty-state" style="display: none; text-align: center; padding: 40px 20px; color: #999;">
+                    <div style="font-size: 48px; margin-bottom: 12px;">📦</div>
+                    <div>暂无解析记录</div>
+                </div>
+            </div>
+        </div><!-- end tab-shipment -->
+
+        <!-- Reconciliation Tab -->
+        <div class="tab-content" id="tab-reconciliation" style="overflow: hidden;">
+            <div class="reconciliation-header">
+                <h2>📊 出货对账</h2>
+                <div class="reconciliation-filter">
+                    <input type="text" id="reconProductSearch" placeholder="🔍 搜索产品名称..." oninput="renderReconciliation()" style="width: 150px;">
+                    <input type="date" id="reconStartDate">
+                    <span>至</span>
+                    <input type="date" id="reconEndDate">
+                    <button class="btn btn-sm btn-secondary" onclick="setReconciliationDate('all')">全部</button>
+                    <button class="btn btn-sm btn-secondary" onclick="setReconciliationDate('today')">今天</button>
+                    <button class="btn btn-sm btn-secondary" onclick="setReconciliationDate('yesterday')">昨天</button>
+                    <button class="btn btn-sm btn-secondary" onclick="setReconciliationDate('week')">本周</button>
+                    <button class="btn btn-sm btn-secondary" onclick="setReconciliationDate('month')">本月</button>
+                    <button class="btn btn-sm btn-primary" onclick="renderReconciliation()">🔍 查询</button>
+                    <button class="btn btn-info" onclick="openSupplementModal()">📝 补充记录</button>
+                    <button class="btn btn-secondary" onclick="exportReconciliation()">导出对账单</button>
+                </div>
+            </div>
+            
+            <!-- 出货看板容器 -->
+            <div style="display: flex; flex-direction: column; gap: 16px; flex: 1;">
+                <!-- 出货明细看板 -->
+                <div class="recon-detail-section" style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; flex-shrink: 0;">
+                        <h3>📋 出货明细看板</h3>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                <input type="checkbox" id="selectAllDetailTop" onchange="toggleSelectAllDetail(this.checked)">
+                                <span>全选</span>
+                            </label>
+                            <button class="btn btn-sm btn-danger" onclick="deleteSelectedDetails()">🗑️ 删除选中</button>
+                        </div>
+                    </div>
+                    <div class="table-wrapper" style="flex: 1; overflow-y: auto;">
+                        <table class="recon-detail-table">
+                            <thead>
+                                <tr>
+                                    <th width="40"></th>
+                                    <th>序号</th>
+                                    <th>品名</th>
+                                    <th>数量</th>
+                                    <th>总体积</th>
+                                    <th>操作时间</th>
+                                    <th>备注</th>
+                                    <th>备注1</th>
+                                    <th>备注2</th>
+                                </tr>
+                            </thead>
+                            <tbody id="reconDetailBody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 产品汇总看板 -->
+                <div class="recon-detail-section" style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
+                    <h3 style="flex-shrink: 0;">📊 产品汇总看板</h3>
+                    <div class="table-wrapper" style="flex: 1; overflow-y: auto; margin-top: 8px;">
+                        <table class="recon-detail-table">
+                            <thead>
+                                <tr>
+                                    <th>序号</th>
+                                    <th>品名</th>
+                                    <th>数量</th>
+                                    <th>总体积(CBM)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="reconSummaryBody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Supplement Record Modal -->
+            <div class="modal-overlay" id="supplementModal">
+                <div class="modal">
+                    <div class="modal-header">
+                        <h3>📝 补充出货记录</h3>
+                        <button class="modal-close" onclick="closeSupplementModal()">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label>选择日期 *</label>
+                            <input type="date" id="supplementDate" class="form-input">
+                        </div>
+                        <div class="form-group">
+                            <label>粘贴发货信息</label>
+                            <textarea id="supplementInput" class="form-input" style="height: 200px;" placeholder="粘贴需要补充的发货信息..."></textarea>
+                        </div>
+                        <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px;">
+                            <button class="btn btn-secondary" onclick="closeSupplementModal()">取消</button>
+                            <button class="btn btn-primary" onclick="parseSupplementShipment()">💾 保存记录</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div><!-- end tab-reconciliation -->
+
         <!-- Inventory Tab -->
         <div class="tab-content" id="tab-inventory">
             <!-- Inventory Stats -->
@@ -1073,6 +1400,7 @@
                             <th>别名/关键词</th>
                             <th style="width: 80px;">每箱数</th>
                             <th style="width: 80px;">每箱CBM</th>
+                            <th style="width: 80px;">重量KG</th>
                             <th style="width: 100px;">盘点数量</th>
                             <th style="width: 80px;">总箱数</th>
                             <th style="width: 100px;">剩余个数</th>
@@ -1135,6 +1463,12 @@
                             <div class="form-group">
                                 <label>每箱CBM</label>
                                 <input type="number" id="inventoryEditCbm" class="form-input" placeholder="自动计算" step="0.0001" readonly>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>重量 (kg)</label>
+                                <input type="number" id="inventoryEditWeight" class="form-input" placeholder="每箱重量" min="0" step="0.01">
                             </div>
                         </div>
                         <div class="form-row">
@@ -1462,6 +1796,9 @@
             if (tab === 'inventory') {
                 loadInventory();
                 renderInventory();
+            } else if (tab === 'shipment') {
+                loadShipmentData();
+                renderShipmentResults();
             }
         }
 
@@ -1510,6 +1847,7 @@
                         <td style="color: var(--text-secondary); font-size: 13px;">${escapeHtml(item.keywords || '-')}</td>
                         <td>${item.perBox || '-'}</td>
                         <td>${item.cbm || '-'}</td>
+                        <td>${item.weight ? item.weight + ' kg' : '-'}</td>
                         <td>${(item.count || 0).toLocaleString()}</td>
                         <td>${item.totalBoxes || 0}</td>
                         <td class="inventory-stock ${stockClass}">${(item.remaining || 0).toLocaleString()}</td>
@@ -1538,6 +1876,7 @@
                         keywords: row['别名/关键词'] || row['别名/关键词 '] || '',
                         perBox: parseInt(row['每箱数'] || row['每箱数 ']) || 0,
                         cbm: parseFloat(row['每箱CBM'] || row['每箱CBM ']) || 0,
+                        weight: parseFloat(row['重量KG'] || row['重量KG '] || row['重量'] || row['重量 ']) || 0,
                         count: parseInt(row['盘点数量'] || row['盘点数量 ']) || 0,
                         totalBoxes: parseInt(row['总箱数'] || row['总箱数 ']) || 0,
                         remaining: parseInt(row['剩余个数'] || row['剩余个数 ']) || 0
@@ -1614,6 +1953,7 @@
             document.getElementById('inventoryEditWidth').value = item.width || '';
             document.getElementById('inventoryEditHeight').value = item.height || '';
             document.getElementById('inventoryEditCbm').value = item.cbm || '';
+            document.getElementById('inventoryEditWeight').value = item.weight || '';
             document.getElementById('inventoryEditCount').value = item.count || '';
             document.getElementById('inventoryEditTotalBoxes').value = item.totalBoxes || '';
             document.getElementById('inventoryEditRemaining').value = item.remaining || '';
@@ -1622,6 +1962,123 @@
 
         function closeInventoryEditModal() {
             document.getElementById('inventoryEditModal').classList.remove('active');
+        }
+
+        function openSupplementModal() {
+            document.getElementById('supplementDate').value = new Date().toISOString().split('T')[0];
+            document.getElementById('supplementInput').value = '';
+            document.getElementById('supplementModal').classList.add('active');
+        }
+
+        function closeSupplementModal() {
+            document.getElementById('supplementModal').classList.remove('active');
+        }
+
+        function parseSupplementShipment() {
+            const supplementDate = document.getElementById('supplementDate').value;
+            const inputText = document.getElementById('supplementInput').value.trim();
+
+            if (!supplementDate) {
+                alert('请选择日期');
+                return;
+            }
+            if (!inputText) {
+                alert('请粘贴发货信息');
+                return;
+            }
+
+            // 使用通用解析函数
+            const products = parseShipmentText(inputText);
+            if (products.length === 0) {
+                alert('未解析到有效数据，请检查格式');
+                return;
+            }
+
+            // 匹配库存获取详细信息
+            const parsedData = [];
+            const originalText = inputText; // 保存原始信息
+            const supplementDateDisplay = supplementDate.replace(/-/g, '/') + '（补充）';
+            products.forEach(product => {
+                const inventoryInfo = findInventoryByProduct(product.productName);
+                const perBox = inventoryInfo ? (inventoryInfo.perBox || 100) : 100;
+                const cbm = inventoryInfo ? (inventoryInfo.cbm || 0.12) : 0.12;
+                let boxCount = product.boxCount || 0;
+                let totalPieces = product.pieces || 0;
+                if (product.pieces) {
+                    boxCount = 0; // 散件不算箱数
+                    totalPieces = product.pieces;
+                } else {
+                    totalPieces = boxCount * perBox;
+                }
+                if (inventoryInfo) {
+                    parsedData.push({
+                        productName: inventoryInfo.name,
+                        originalProductName: product.productName,
+                        boxCount: boxCount,
+                        piecesPerBox: perBox,
+                        totalPieces: totalPieces,
+                        totalVolume: parseFloat((boxCount * cbm).toFixed(3)),
+                        operationTime: supplementDateDisplay,
+                        remark: originalText,
+                        remark1: '',
+                        remark2: ''
+                    });
+                } else {
+                    // 未匹配到库存，使用默认值
+                    parsedData.push({
+                        productName: product.productName,
+                        originalProductName: product.productName,
+                        boxCount: boxCount,
+                        piecesPerBox: perBox,
+                        totalPieces: totalPieces,
+                        totalVolume: parseFloat((boxCount * cbm).toFixed(3)),
+                        operationTime: supplementDateDisplay,
+                        remark: originalText,
+                        remark1: '',
+                        remark2: ''
+                    });
+                }
+            });
+
+            // 计算产品汇总
+            const productSummary = {};
+            parsedData.forEach(item => {
+                if (!productSummary[item.productName]) {
+                    productSummary[item.productName] = { boxCount: 0, totalPieces: 0 };
+                }
+                productSummary[item.productName].boxCount += item.boxCount;
+                productSummary[item.productName].totalPieces += item.totalPieces;
+            });
+
+            // 构建对账记录
+            const now = new Date();
+            const exportTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+
+            const reconRecord = {
+                id: Date.now(),
+                date: supplementDate,
+                time: exportTime,
+                recordCount: parsedData.length,
+                products: Object.keys(productSummary).map(name => ({
+                    name: name,
+                    boxCount: productSummary[name].boxCount,
+                    totalPieces: productSummary[name].totalPieces
+                })),
+                totalBoxes: Object.values(productSummary).reduce((sum, p) => sum + p.boxCount, 0),
+                totalPieces: Object.values(productSummary).reduce((sum, p) => sum + p.totalPieces, 0),
+                details: parsedData
+            };
+
+            reconciliationData.records.unshift(reconRecord);
+            saveReconciliationData();
+
+            closeSupplementModal();
+            alert(`已保存 ${parsedData.length} 条补充记录到 ${supplementDate}`);
+
+            // 如果当前在出货对账页面，刷新显示
+            if (document.getElementById('tab-reconciliation').classList.contains('active')) {
+                renderReconciliation();
+            }
         }
 
         function calcInventoryCBM() {
@@ -1647,6 +2104,7 @@
             const width = parseFloat(document.getElementById('inventoryEditWidth').value) || 0;
             const height = parseFloat(document.getElementById('inventoryEditHeight').value) || 0;
             const cbm = parseFloat(document.getElementById('inventoryEditCbm').value) || 0;
+            const weight = parseFloat(document.getElementById('inventoryEditWeight').value) || 0;
             const count = parseInt(document.getElementById('inventoryEditCount').value) || 0;
             const remaining = parseInt(document.getElementById('inventoryEditRemaining').value) || 0;
             const totalBoxes = perBox ? Math.floor(remaining / perBox) : 0;
@@ -1660,6 +2118,7 @@
                 width,
                 height,
                 cbm,
+                weight,
                 count,
                 totalBoxes,
                 remaining
@@ -3406,6 +3865,1172 @@
             }
             return 'baojia';
         }
+
+        // ========== 发货解析功能 ==========
+        let shipmentData = { summary: [] };
+        let reconciliationData = { records: [] }; // 出货对账数据
+
+        function loadShipmentData() {
+            const saved = localStorage.getItem('shipmentData');
+            if (saved) shipmentData = JSON.parse(saved);
+            const reconSaved = localStorage.getItem('reconciliationData');
+            if (reconSaved) reconciliationData = JSON.parse(reconSaved);
+        }
+
+        function saveShipmentData() {
+            localStorage.setItem('shipmentData', JSON.stringify(shipmentData));
+        }
+
+        function saveReconciliationData() {
+            localStorage.setItem('reconciliationData', JSON.stringify(reconciliationData));
+        }
+
+        // 通用发货信息解析函数
+        function parseShipmentText(inputText) {
+            const chineseNumMap = {'一':1,'二':2,'三':3,'四':4,'五':5,'六':6,'七':7,'八':8,'九':9,'十':10,'壹':1,'贰':2,'叁':3,'肆':4,'伍':5,'陆':6,'柒':7,'捌':8,'玖':9,'拾':10,'两':2};
+            let products = [];
+            const lines = inputText.split(/[\n\r]+/);
+
+            for (const line of lines) {
+                const trimmedLine = line.trim();
+                if (!trimmedLine) continue;
+                if (/^\d{10,}$/.test(trimmedLine)) continue;
+                if (/^(收货人|电话|地址|跨越|顺丰)/.test(trimmedLine)) continue;
+                if (/^[A-Z]{2}\d+$/.test(trimmedLine)) continue;
+                if (/^maybe$/i.test(trimmedLine)) continue;
+
+                let match = trimmedLine.match(/^(\d+)箱(.+)$/);
+                if (match) {
+                    const boxCount = parseInt(match[1]);
+                    let productName = match[2].trim();
+                    if (productName) { products.push({ productName, boxCount }); continue; }
+                }
+
+                match = trimmedLine.match(/^([一二两三四五六七八九十壹贰叁肆伍陆柒捌玖拾]+)箱(.+)$/);
+                if (match) {
+                    const numStr = match[1];
+                    const boxCount = chineseNumMap[numStr];
+                    let productName = match[2].trim();
+                    if (productName && boxCount) { products.push({ productName, boxCount }); continue; }
+                }
+
+                match = trimmedLine.match(/^([\d一二两壹贰叁肆伍陆柒捌玖拾]+)\s+箱\s+(.+)$/);
+                if (match) {
+                    const numStr = match[1];
+                    const boxCount = parseInt(numStr) || chineseNumMap[numStr] || 0;
+                    let productName = (match[2] || '').trim();
+                    if (productName && boxCount > 0) { products.push({ productName, boxCount }); continue; }
+                }
+
+                match = trimmedLine.match(/^(.+?)\s*([\d一二两壹贰叁肆伍陆柒捌玖拾]+)\s*箱\s*$/);
+                if (match) {
+                    const productName = match[1].trim();
+                    const numStr = match[2];
+                    const boxCount = parseInt(numStr) || chineseNumMap[numStr] || 0;
+                    if (productName && boxCount > 0 && productName.length >= 2 && !/^[\d]+$/.test(productName)) {
+                        products.push({ productName, boxCount }); continue;
+                    }
+                }
+
+                // 匹配格式6：X个产品名 (如 "6个小葵")
+                match = trimmedLine.match(/^([\d一二两壹贰叁肆伍陆柒捌玖拾]+)\s*个(.+)$/);
+                if (match) {
+                    const pieces = parseInt(match[1]) || chineseNumMap[match[1]] || 0;
+                    let productName = match[2].trim();
+                    if (productName && pieces > 0) { products.push({ productName, pieces }); continue; }
+                }
+
+                // 匹配格式7：产品名 X个 (如 "小葵6个")
+                match = trimmedLine.match(/^(.+?)\s*([\d一二两壹贰叁肆伍陆柒捌玖拾]+)\s*个\s*$/);
+                if (match) {
+                    const productName = match[1].trim();
+                    const pieces = parseInt(match[2]) || chineseNumMap[match[2]] || 0;
+                    if (productName && pieces > 0 && productName.length >= 2) { products.push({ productName, pieces }); continue; }
+                }
+
+                // 匹配格式8：X个 (单独一个数字+个，表示上一个产品的个数补充)
+                match = trimmedLine.match(/^([\d一二两壹贰叁肆伍陆柒捌玖拾]+)\s*个\s*$/);
+                if (match) {
+                    const pieces = parseInt(match[1]) || chineseNumMap[match[1]] || 0;
+                    if (pieces > 0 && products.length > 0) {
+                        products[products.length - 1].pieces = pieces; continue;
+                    }
+                }
+            }
+            return products;
+        }
+
+        function parseShipment() {
+            const inputText = document.getElementById('shipmentInput').value.trim();
+            if (!inputText) { alert('请粘贴发货信息'); return; }
+
+            // 中文数字映射
+            const chineseNums = {'一':1,'壹':1,'二':2,'两':2,'三':3,'四':4,'五':5,'六':6,'七':7,'八':8,'九':9,'十':10};
+            
+            let products = [];
+            
+            // 按行解析
+            const lines = inputText.split(/[\n\r]+/);
+            
+            for (const line of lines) {
+                const trimmedLine = line.trim();
+                if (!trimmedLine) continue;
+                
+                // 跳过纯数字、运单号、收货信息等
+                if (/^\d{10,}$/.test(trimmedLine)) continue;
+                if (/^(收货人|电话|地址|跨越|顺丰)/.test(trimmedLine)) continue;
+                if (/^[A-Z]{2}\d+$/.test(trimmedLine)) continue;
+                if (/^maybe$/i.test(trimmedLine)) continue;  // 跳过Maybe
+                
+                // 中文数字到阿拉伯数字的映射
+                const chineseNumMap = {'一':1,'二':2,'三':3,'四':4,'五':5,'六':6,'七':7,'八':8,'九':9,'十':10,'壹':1,'贰':2,'叁':3,'肆':4,'伍':5,'陆':6,'柒':7,'捌':8,'玖':9,'拾':10,'两':2};
+                
+                // 匹配格式1：X箱产品名 (如 "7箱小葵" 或 "七箱小葵" 或 "七箱娃三岁童话世界")
+                // 支持数字+箱+产品名无空格的情况
+                let match = trimmedLine.match(/^(\d+)箱(.+)$/);
+                if (match) {
+                    const boxCount = parseInt(match[1]);
+                    let productName = match[2].trim();
+                    if (productName) {
+                        products.push({ productName, boxCount });
+                        continue;
+                    }
+                }
+                
+                // 匹配格式1b：中文数字+箱+产品名
+                match = trimmedLine.match(/^([一二两三四五六七八九十壹贰叁肆伍陆柒捌玖拾]+)箱(.+)$/);
+                if (match) {
+                    const numStr = match[1];
+                    const boxCount = chineseNumMap[numStr];
+                    let productName = match[2].trim();
+                    if (productName && boxCount) {
+                        products.push({ productName, boxCount });
+                        continue;
+                    }
+                }
+                
+                // 匹配格式1b：X 箱产品名 (有空格的情况，原来的正则)
+                match = trimmedLine.match(/^([\d一二两壹贰叁肆伍陆柒捌玖拾]+)\s+箱\s+(.+)$/);
+                if (match) {
+                    const numStr = match[1];
+                    const boxCount = parseInt(numStr) || chineseNumMap[numStr] || 0;
+                    let productName = (match[2] || '').trim();
+                    if (productName && boxCount > 0) {
+                        products.push({ productName, boxCount });
+                        continue;
+                    }
+                }
+                
+                // 匹配格式2：产品名 X箱 (如 "小葵7箱" 或 "小葵七箱")
+                match = trimmedLine.match(/^(.+?)\s*([\d一二两壹贰叁肆伍陆柒捌玖拾]+)\s*箱\s*$/);
+                if (match) {
+                    const productName = match[1].trim();
+                    const numStr = match[2];
+                    const boxCount = parseInt(numStr) || chineseNumMap[numStr] || 0;
+                    if (productName && boxCount > 0 && productName.length >= 2 && !/^[\d]+$/.test(productName)) {
+                        products.push({ productName, boxCount });
+                        continue;
+                    }
+                }
+
+                // 匹配格式6：X个产品名 (如 "6个小葵")
+                match = trimmedLine.match(/^([\d一二两壹贰叁肆伍陆柒捌玖拾]+)\s*个(.+)$/);
+                if (match) {
+                    const pieces = parseInt(match[1]) || chineseNumMap[match[1]] || 0;
+                    let productName = match[2].trim();
+                    if (productName && pieces > 0) { products.push({ productName, pieces }); continue; }
+                }
+
+                // 匹配格式7：产品名 X个 (如 "小葵6个")
+                match = trimmedLine.match(/^(.+?)\s*([\d一二两壹贰叁肆伍陆柒捌玖拾]+)\s*个\s*$/);
+                if (match) {
+                    const productName = match[1].trim();
+                    const pieces = parseInt(match[2]) || chineseNumMap[match[2]] || 0;
+                    if (productName && pieces > 0 && productName.length >= 2) { products.push({ productName, pieces }); continue; }
+                }
+            }
+
+            if (products.length === 0) { 
+                alert('未找到有效的品名和箱数信息'); 
+                return; 
+            }
+
+            // 先收集需要选择的产品
+            const unmatchedProducts = [];
+            const matchedProducts = [];
+
+            products.forEach(product => {
+                const inventoryInfo = findInventoryByProduct(product.productName);
+                if (inventoryInfo) {
+                    matchedProducts.push({ product, inventoryInfo });
+                } else {
+                    unmatchedProducts.push(product);
+                }
+            });
+
+            // 如果有不匹配的产品，弹出选择框
+            if (unmatchedProducts.length > 0) {
+                showProductSelectModal(unmatchedProducts, matchedProducts, inputText);
+            } else {
+                // 全部匹配成功，直接保存
+                matchedProducts.forEach(({ product, inventoryInfo }) => {
+                    const perBox = inventoryInfo.perBox || 100;
+                    const cbm = inventoryInfo.cbm || 0.12;
+                    // 如果是散件数，不算箱数
+                    let boxCount = product.boxCount || 0;
+                    let totalPieces = product.pieces || 0;
+                    if (product.pieces) {
+                        boxCount = 0; // 散件不算箱数
+                        totalPieces = product.pieces;
+                    } else {
+                        totalPieces = boxCount * perBox;
+                    }
+                    const record = {
+                        id: shipmentData.summary.length + 1,
+                        productName: inventoryInfo.name,
+                        originalProductName: product.productName,
+                        boxCount: boxCount,
+                        piecesPerBox: perBox,
+                        volumePerBox: cbm,
+                        totalPieces: totalPieces,
+                        totalVolume: parseFloat((boxCount * cbm).toFixed(3)),
+                        operationTime: new Date().toLocaleString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }),
+                        remark: inputText
+                    };
+                    shipmentData.summary.push(record);
+                });
+                saveShipmentData();
+                document.getElementById('shipmentInput').value = '';
+                renderShipmentResults();
+                showToast('解析成功');
+            }
+        }
+
+        function showProductSelectModal(unmatchedProducts, matchedProducts, inputText) {
+            const inventoryData = JSON.parse(localStorage.getItem('inventory_data') || '[]');
+            
+            // 保存到全局变量
+            window._pendingProducts = { unmatched: unmatchedProducts, matched: matchedProducts, inputText: inputText };
+            
+            // 创建 datalist 用于搜索
+            const productListId = 'inventory_product_list';
+            let html = `
+                <div style="margin-bottom: 20px;">
+                    <p style="margin-bottom: 15px; color: #666;">以下产品未匹配到库存，请选择对应的产品：</p>
+                    <div style="margin-bottom: 15px;">
+                        <input type="text" id="searchInventory" placeholder="🔍 搜索库存产品..." oninput="filterProductSelects(this.value)" style="width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px;">
+                    </div>
+                    <datalist id="${productListId}">
+                        ${inventoryData.map(item => `<option value="${escapeHtml(item.name)}">`).join('')}
+                    </datalist>
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="background: #f5f5f5;">
+                                <th style="padding: 10px; border: 1px solid #ddd; text-align: left;">解析的产品</th>
+                                <th style="padding: 10px; border: 1px solid #ddd; text-align: left; width: 60%;">选择库存产品</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
+            
+            unmatchedProducts.forEach((product, index) => {
+                html += `<tr>
+                    <td style="padding: 10px; border: 1px solid #ddd;">${escapeHtml(product.productName)} (${product.boxCount}箱)</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">
+                        <input type="text" id="select_product_${index}" list="${productListId}" placeholder="输入搜索或选择..." style="width: 100%; padding: 6px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px;" onfocus="this.value=''">
+                    </td>
+                </tr>`;
+            });
+            
+            html += `</tbody></table></div>`;
+
+            // 创建弹窗
+            const existingModal = document.getElementById('productSelectModal');
+            if (existingModal) existingModal.remove();
+
+            const modal = document.createElement('div');
+            modal.id = 'productSelectModal';
+            modal.className = 'modal-overlay active';
+            modal.innerHTML = `
+                <div class="modal" style="max-width: 700px; width: 90%;">
+                    <div class="modal-header">
+                        <div class="modal-title">选择对应的库存产品</div>
+                        <button class="modal-close" onclick="closeProductSelectModal()">&times;</button>
+                    </div>
+                    <div class="modal-body" style="max-height: 400px; overflow-y: auto;">
+                        ${html}
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" onclick="closeProductSelectModal()">取消</button>
+                        <button class="btn btn-primary" onclick="confirmProductSelect()">确认添加</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        function filterProductSelects(searchText) {
+            const inputs = document.querySelectorAll('[id^="select_product_"]');
+            inputs.forEach(input => {
+                // 保留当前选中的值
+                const currentValue = input.value;
+                input.value = '';
+                input.placeholder = currentValue || '输入搜索或选择...';
+            });
+        }
+
+        function closeProductSelectModal() {
+            const modal = document.getElementById('productSelectModal');
+            if (modal) modal.remove();
+            window._pendingProducts = null;
+        }
+
+        function confirmProductSelect() {
+            const { unmatched, matched, inputText } = window._pendingProducts;
+            const inventoryData = JSON.parse(localStorage.getItem('inventory_data') || '[]');
+            const allMatched = [...matched];
+            
+            // 获取用户选择的产品
+            for (let i = 0; i < unmatched.length; i++) {
+                const select = document.getElementById(`select_product_${i}`);
+                const selectedName = select.value;
+                if (!selectedName) {
+                    alert('请为所有产品选择对应的库存产品');
+                    return;
+                }
+                
+                // 找到对应的库存产品并添加到关键词
+                const inventoryItem = inventoryData.find(item => item.name === selectedName);
+                if (inventoryItem) {
+                    // 把原始产品名清理后添加到关键词（移除体、个、箱等后缀，与匹配逻辑一致）
+                    const cleanKeyword = unmatched[i].productName.replace(/[%体个箱千 ]/g, '');
+                    const keywords = inventoryItem.keywords || '';
+                    const keywordList = keywords ? keywords.split(/[,，]/).map(k => k.trim()).filter(k => k) : [];
+                    if (!keywordList.includes(cleanKeyword)) {
+                        keywordList.push(cleanKeyword);
+                        inventoryItem.keywords = keywordList.join('，');
+                    }
+                    allMatched.push({ product: unmatched[i], inventoryInfo: inventoryItem });
+                }
+            }
+
+            // 保存更新后的库存数据（包含新的关键词）
+            localStorage.setItem('inventory_data', JSON.stringify(inventoryData));
+
+            closeProductSelectModal();
+            
+            // 保存数据
+            allMatched.forEach(({ product, inventoryInfo }) => {
+                const perBox = inventoryInfo.perBox || 100;
+                const cbm = inventoryInfo.cbm || 0.12;
+                let boxCount = product.boxCount || 0;
+                let totalPieces = product.pieces || 0;
+                if (product.pieces) {
+                    boxCount = 0; // 散件不算箱数
+                    totalPieces = product.pieces;
+                } else {
+                    totalPieces = boxCount * perBox;
+                }
+                const record = {
+                    id: shipmentData.summary.length + 1,
+                    productName: inventoryInfo.name,
+                    originalProductName: product.productName,
+                    boxCount: boxCount,
+                    piecesPerBox: perBox,
+                    volumePerBox: cbm,
+                    totalPieces: totalPieces,
+                    totalVolume: parseFloat((boxCount * cbm).toFixed(3)),
+                    operationTime: new Date().toLocaleString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }),
+                    remark: inputText
+                };
+                shipmentData.summary.push(record);
+            });
+
+            saveShipmentData();
+            document.getElementById('shipmentInput').value = '';
+            renderShipmentResults();
+            showToast('解析成功');
+        }
+
+        function parseCustomerInfo(text) {
+            const info = {};
+            const nameMatch = text.match(/收货[人称]：\s*(.+?)(?:\n|$)/);
+            if (nameMatch) info.customerName = nameMatch[1].trim();
+            const phoneMatch = text.match(/(?:电话|手机|联系电话)：\s*(\d[\d\-\s]{7,})/);
+            if (phoneMatch) info.phone = phoneMatch[1].trim();
+            const addrMatch = text.match(/(?:地址|收货地址)：\s*(.+?)(?:\n|$)/);
+            if (addrMatch) info.address = addrMatch[1].trim();
+            const remark1Match = text.match(/备注1[：:]\s*(.+?)(?:\n|$)/);
+            if (remark1Match) info.remark1 = remark1Match[1].trim();
+            const remark2Match = text.match(/备注2[：:]\s*(.+?)(?:\n|$)/);
+            if (remark2Match) info.remark2 = remark2Match[1].trim();
+            return info;
+        }
+
+        function findInventoryByProduct(productName) {
+            const inventoryData = JSON.parse(localStorage.getItem('inventory_data') || '[]');
+            
+            // 清理输入名称，移除常见后缀
+            const cleanName = productName.replace(/[%体个箱千 ]/g, '');
+            
+            // 提取数字部分
+            const numbers = cleanName.match(/\d+/g) || [];
+            
+            // 方法1：完全相等
+            for (const item of inventoryData) {
+                if (item.name === cleanName) return item;
+            }
+            
+            // 方法2：关键词完全相等或关键词被输入名称包含
+            for (const item of inventoryData) {
+                if (item.keywords) {
+                    const keywords = item.keywords.split(/[,，]/).map(k => k.trim());
+                    // 完全相等
+                    if (keywords.includes(cleanName)) return item;
+                    // 关键词被输入名称包含（处理"花开向阳"匹配"花开向阳400体"的情况）
+                    for (const kw of keywords) {
+                        if (kw.length >= 4 && cleanName.includes(kw)) return item;
+                    }
+                }
+            }
+            
+            // 方法3：库存名称完全包含输入名称（输入名称短时）
+            if (cleanName.length <= 6) {
+                for (const item of inventoryData) {
+                    if (item.name === cleanName) return item;
+                    if (item.name.includes(cleanName) && cleanName.length >= 4) return item;
+                }
+            }
+            
+            // 方法4：输入名称完全包含库存名称（输入名称长时）
+            for (const item of inventoryData) {
+                if (cleanName.includes(item.name) && item.name.length >= 4) return item;
+            }
+            
+            // 方法5：带数字的模糊匹配（仅当数字匹配时）
+            if (numbers.length > 0) {
+                for (const item of inventoryData) {
+                    const itemNumbers = item.name.match(/\d+/g) || [];
+                    if (itemNumbers.length > 0) {
+                        // 数字必须完全匹配
+                        const numMatch = numbers.length === itemNumbers.length && 
+                                        numbers.every(n => itemNumbers.includes(n));
+                        if (numMatch) {
+                            // 检查核心名称是否匹配（去除数字后的部分）
+                            const cleanNum = n => n.replace(/\d+/g, '');
+                            if (cleanNum(cleanName) === cleanNum(item.name)) return item;
+                        }
+                    }
+                }
+            }
+            
+            return null;
+        }
+
+        function renderShipmentResults() {
+            const totalBoxes = shipmentData.summary.reduce((sum, item) => sum + item.boxCount, 0);
+            const totalPieces = shipmentData.summary.reduce((sum, item) => sum + item.totalPieces, 0);
+            document.getElementById('shipmentTotalBoxes2').textContent = totalBoxes;
+            document.getElementById('shipmentTotalPieces2').textContent = totalPieces;
+
+            const summaryBody = document.getElementById('shipmentSummaryBody');
+            const empty = document.getElementById('shipmentEmpty');
+
+            if (shipmentData.summary.length === 0) {
+                summaryBody.innerHTML = '';
+                empty.style.display = 'block';
+                return;
+            }
+            empty.style.display = 'none';
+
+            summaryBody.innerHTML = shipmentData.summary.map(record => `
+                <tr data-record-id="${record.id}" onclick="toggleRecordSelection(${record.id}, event)" style="cursor: pointer;">
+                    <td><input type="checkbox" class="record-checkbox" value="${record.id}" onclick="event.stopPropagation()"></td>
+                    <td>${record.id}</td>
+                    <td>${escapeHtml(record.productName)}</td>
+                    <td>${record.boxCount}箱</td>
+                    <td>${record.totalPieces}</td>
+                    <td>${record.totalVolume}</td>
+                    <td>${escapeHtml(record.operationTime || '')}</td>
+                    <td style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(record.remark || '')}">${escapeHtml(record.remark || '')}</td>
+                    <td class="editable-cell" data-field="remark1" data-id="${record.id}" style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;cursor:pointer;" title="${escapeHtml(record.remark1 || '')}">${escapeHtml(record.remark1 || '')}</td>
+                    <td class="editable-cell" data-field="remark2" data-id="${record.id}" style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;cursor:pointer;" title="${escapeHtml(record.remark2 || '')}">${escapeHtml(record.remark2 || '')}</td>
+                </tr>
+            `).join('');
+            
+            // 绑定备注1、备注2双击编辑
+            document.querySelectorAll('#shipmentSummaryBody .editable-cell').forEach(cell => {
+                cell.addEventListener('dblclick', function() {
+                    if (this.querySelector('input')) return;
+                    const field = this.dataset.field;
+                    const id = parseInt(this.dataset.id);
+                    const currentValue = this.textContent;
+                    const input = document.createElement('input');
+                    input.type = 'text';
+                    input.value = currentValue;
+                    input.style.cssText = 'width:100%;border:1px solid #ddd;padding:2px;font-size:12px;';
+                    const targetCell = this;
+                    input.onblur = function() {
+                        targetCell.textContent = input.value;
+                        // 保存到数据
+                        const record = shipmentData.summary.find(r => r.id === id);
+                        if (record) {
+                            record[field] = input.value;
+                            saveShipmentData();
+                        }
+                    };
+                    input.onkeydown = function(e) { if (e.key === 'Enter') input.blur(); };
+                    targetCell.textContent = '';
+                    targetCell.appendChild(input);
+                    input.focus();
+                });
+            });
+        }
+
+        function toggleRecordSelection(id, event) {
+            const checkbox = document.querySelector(`.record-checkbox[value="${id}"]`);
+            if (checkbox) {
+                checkbox.checked = !checkbox.checked;
+                updateSelectedCount();
+            }
+        }
+
+        function updateSelectedCount() {
+            const count = document.querySelectorAll('.record-checkbox:checked').length;
+            document.getElementById('selectedCount').textContent = count;
+        }
+
+        function toggleSelectAll(checked) {
+            document.querySelectorAll('.record-checkbox').forEach(cb => cb.checked = checked);
+            updateSelectedCount();
+        }
+
+        function deleteSelectedShipments() {
+            const selectedIds = Array.from(document.querySelectorAll('.record-checkbox:checked')).map(cb => parseInt(cb.value));
+            if (selectedIds.length === 0) { alert('请先选择要删除的记录'); return; }
+            if (!confirm(`确定要删除选中的 ${selectedIds.length} 条记录吗？`)) return;
+            shipmentData.summary = shipmentData.summary.filter(r => !selectedIds.includes(r.id));
+            saveShipmentData();
+            renderShipmentResults();
+            showToast('删除成功');
+        }
+
+        function exportShipment() {
+            try {
+                console.log('开始导出...');
+                if (shipmentData.summary.length === 0) { alert('没有可导出的数据'); return; }
+                console.log('数据条数:', shipmentData.summary.length);
+                
+                // ===== 今日汇总表 =====
+                const headers = ['序号', '品名', '数量', '总体积', '操作时间', '备注', '备注1', '备注2'];
+                const summaryData = [headers];
+                const formatQtyExport = (box, pcs) => {
+                    // 散件显示个数，整箱显示箱数
+                    if (box === 0 && pcs > 0) {
+                        return pcs + '个';
+                    }
+                    if (box > 0) {
+                        return box + '箱';
+                    }
+                    return '';
+                };
+                shipmentData.summary.forEach(record => {
+                    summaryData.push([record.id, record.productName, formatQtyExport(record.boxCount || 0, record.totalPieces || 0), record.totalVolume, record.operationTime || '', record.remark || '', record.remark1 || '', record.remark2 || '']);
+                });
+                
+                // ===== 产品汇总表 =====
+                const productSummary = {};
+                shipmentData.summary.forEach(record => {
+                    const name = record.productName;
+                    if (!productSummary[name]) {
+                        productSummary[name] = { fullBoxes: 0, loosePieces: 0 };
+                    }
+                    // 散件：boxCount为0
+                    if (record.boxCount === 0) {
+                        productSummary[name].loosePieces += record.totalPieces || 0;
+                    } else {
+                        productSummary[name].fullBoxes += record.boxCount || 0;
+                    }
+                });
+                
+                const prodHeaders = ['品名', '数量'];
+                const prodData = [prodHeaders];
+                Object.keys(productSummary).forEach(name => {
+                    const info = productSummary[name];
+                    // 汇总表显示箱数+个数
+                    const boxes = info.fullBoxes > 0 ? info.fullBoxes + '箱' : '';
+                    const pieces = info.loosePieces > 0 ? info.loosePieces + '个' : '';
+                    prodData.push([name, boxes + pieces]);
+                });
+                
+                // 创建工作簿
+                const wb = XLSX.utils.book_new();
+                
+                // 今日汇总表
+                const ws1 = XLSX.utils.aoa_to_sheet(summaryData);
+                ws1['!cols'] = [{ wch: 6 }, { wch: 25 }, { wch: 12 }, { wch: 10 }, { wch: 18 }, { wch: 20 }, { wch: 15 }, { wch: 15 }];
+                
+                // 应用样式：表头深粉色、数据行浅粉色交替、居中、边框
+                const headerFill = { bgColor: { indexed: 64 }, fgColor: { rgb: "FFB6C1" } }; // 浅粉色
+                const rowFill1 = { bgColor: { indexed: 64 }, fgColor: { rgb: "FFE4E9" } }; // 浅粉色1
+                const rowFill2 = { bgColor: { indexed: 64 }, fgColor: { rgb: "FFF0F5" } }; // 浅粉色2（更浅）
+                const blackBorder = { top: { style: 'thin', color: { auto: 1 } }, bottom: { style: 'thin', color: { auto: 1 } }, left: { style: 'thin', color: { auto: 1 } }, right: { style: 'thin', color: { auto: 1 } } };
+                const centerAlignment = { horizontal: "center", vertical: "center" };
+                
+                // 获取工作表范围
+                const range = XLSX.utils.decode_range(ws1['!ref']);
+                for (let R = range.s.r; R <= range.e.r; ++R) {
+                    for (let C = range.s.c; C <= range.e.c; ++C) {
+                        const cellAddress = XLSX.utils.encode_cell({r: R, c: C});
+                        if (!ws1[cellAddress]) continue;
+                        if (!ws1[cellAddress].s) ws1[cellAddress].s = {};
+                        if (R === 0) { // 表头 - 深粉色
+                            ws1[cellAddress].s.fill = headerFill;
+                            ws1[cellAddress].s.font = { bold: true, color: { rgb: "000000" } };
+                            ws1[cellAddress].s.alignment = { ...centerAlignment, wrapText: true };
+                            ws1[cellAddress].s.border = blackBorder;
+                        } else { // 数据行 - 交替浅粉色
+                            ws1[cellAddress].s.fill = R % 2 === 0 ? rowFill1 : rowFill2;
+                            ws1[cellAddress].s.alignment = centerAlignment;
+                            ws1[cellAddress].s.border = blackBorder;
+                        }
+                    }
+                }
+                // 设置行高
+                ws1['!rows'] = [{ hpt: 25 }];
+                XLSX.utils.book_append_sheet(wb, ws1, '今日汇总');
+                console.log('今日汇总表创建完成');
+                
+                // 产品汇总表
+                const ws2 = XLSX.utils.aoa_to_sheet(prodData);
+                ws2['!cols'] = [{ wch: 50 }, { wch: 15 }];
+                
+                const range2 = XLSX.utils.decode_range(ws2['!ref']);
+                for (let R = range2.s.r; R <= range2.e.r; ++R) {
+                    for (let C = range2.s.c; C <= range2.e.c; ++C) {
+                        const cellAddress = XLSX.utils.encode_cell({r: R, c: C});
+                        if (!ws2[cellAddress]) continue;
+                        if (!ws2[cellAddress].s) ws2[cellAddress].s = {};
+                        if (R === 0) { // 表头 - 深粉色
+                            ws2[cellAddress].s.fill = headerFill;
+                            ws2[cellAddress].s.font = { bold: true, color: { rgb: "000000" } };
+                            ws2[cellAddress].s.alignment = { ...centerAlignment, wrapText: true };
+                            ws2[cellAddress].s.border = blackBorder;
+                        } else { // 数据行 - 交替浅粉色
+                            ws2[cellAddress].s.fill = R % 2 === 0 ? rowFill1 : rowFill2;
+                            ws2[cellAddress].s.alignment = centerAlignment;
+                            ws2[cellAddress].s.border = blackBorder;
+                        }
+                    }
+                }
+                ws2['!rows'] = [{ hpt: 25 }];
+                XLSX.utils.book_append_sheet(wb, ws2, '产品汇总');
+                console.log('产品汇总表创建完成，准备导出');
+                
+                // 导出
+                XLSX.writeFile(wb, `今日汇总_${new Date().toISOString().split('T')[0]}.xlsx`, { cellStyles: true });
+                
+                // 保存到出货对账系统
+                const exportDate = new Date().toISOString().split('T')[0];
+                const exportTime = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+                const reconRecord = {
+                    id: Date.now(),
+                    date: exportDate,
+                    time: exportTime,
+                    recordCount: shipmentData.summary.length,
+                    products: Object.keys(productSummary).map(name => ({
+                        name: name,
+                        boxCount: productSummary[name].boxCount,
+                        totalPieces: productSummary[name].totalPieces
+                    })),
+                    totalBoxes: Object.values(productSummary).reduce((sum, p) => sum + p.boxCount, 0),
+                    totalPieces: Object.values(productSummary).reduce((sum, p) => sum + p.totalPieces, 0),
+                    // 保存完整明细
+                    details: shipmentData.summary.map(record => ({
+                        id: record.id,
+                        productName: record.productName,
+                        boxCount: record.boxCount,
+                        totalPieces: record.totalPieces,
+                        totalVolume: record.totalVolume,
+                        operationTime: record.operationTime || '',
+                        remark: record.remark || '',
+                        remark1: record.remark1 || '',
+                        remark2: record.remark2 || ''
+                    }))
+                };
+                reconciliationData.records.unshift(reconRecord); // 最新记录在前
+                saveReconciliationData();
+                
+                showToast('导出成功，已存入对账系统');
+            } catch(e) {
+                console.error('导出错误:', e);
+                alert('导出错��：' + e.message + '\n\n请按F12打开控制台查看详细错误信息');
+            }
+        }
+
+        // ========== 出货对账功能 ==========
+        function setReconciliationDate(type) {
+            const today = new Date();
+            const formatDate = (d) => d.toISOString().split('T')[0];
+            
+            switch(type) {
+                case 'all':
+                    document.getElementById('reconStartDate').value = '';
+                    document.getElementById('reconEndDate').value = '';
+                    break;
+                case 'today':
+                    document.getElementById('reconStartDate').value = formatDate(today);
+                    document.getElementById('reconEndDate').value = formatDate(today);
+                    break;
+                case 'yesterday':
+                    const yesterday = new Date(today);
+                    yesterday.setDate(today.getDate() - 1);
+                    document.getElementById('reconStartDate').value = formatDate(yesterday);
+                    document.getElementById('reconEndDate').value = formatDate(yesterday);
+                    break;
+                case 'week':
+                    const weekStart = new Date(today);
+                    weekStart.setDate(today.getDate() - today.getDay());
+                    document.getElementById('reconStartDate').value = formatDate(weekStart);
+                    document.getElementById('reconEndDate').value = formatDate(today);
+                    break;
+                case 'month':
+                    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+                    document.getElementById('reconStartDate').value = formatDate(monthStart);
+                    document.getElementById('reconEndDate').value = formatDate(today);
+                    break;
+            }
+            renderReconciliation();
+        }
+
+        function renderReconciliation() {
+            const detailBody = document.getElementById('reconDetailBody');
+            const startDate = document.getElementById('reconStartDate').value;
+            const endDate = document.getElementById('reconEndDate').value;
+            const productSearch = document.getElementById('reconProductSearch').value.trim().toLowerCase();
+            
+            // 筛选数据
+            let filtered = reconciliationData.records;
+            if (startDate) {
+                filtered = filtered.filter(r => r.date >= startDate);
+            }
+            if (endDate) {
+                filtered = filtered.filter(r => r.date <= endDate);
+            }
+            // 按产品名称筛选
+            if (productSearch) {
+                filtered = filtered.filter(r => {
+                    return r.products.some(p => p.name.toLowerCase().includes(productSearch));
+                });
+            }
+            
+            // 渲染明细看板
+            if (filtered.length > 0) {
+                let seq = 1;
+                let detailRows = '';
+                // 获取原始数据的真实索引
+                const filteredIndices = [];
+                reconciliationData.records.forEach((record, idx) => {
+                    if (filtered.includes(record)) {
+                        filteredIndices.push(idx);
+                    }
+                });
+                filtered.forEach((record, filterIdx) => {
+                    const recIdx = filteredIndices[filterIdx];
+                    if (record.details) {
+                        record.details.forEach((detail, detIdx) => {
+                            // 产品名称筛选
+                            if (productSearch && !detail.productName.toLowerCase().includes(productSearch)) {
+                                return;
+                            }
+                            const uniqueId = `detail_${recIdx}_${detIdx}`;
+                            // 格式化数量显示：整箱显示箱数，散件显示个数
+                            const formatQty = (box, pcs, perBox) => {
+                                // 散件：boxCount为0，只显示个数
+                                if (box === 0 && pcs > 0) {
+                                    return pcs + '个';
+                                }
+                                // 整箱：显示箱数
+                                if (box > 0) {
+                                    return box + '箱';
+                                }
+                                return '';
+                            };
+                            detailRows += `
+                                <tr style="cursor:pointer;" onclick="toggleDetailRow(this, ${recIdx}, ${detIdx})">
+                                    <td><input type="checkbox" class="detail-check" data-record="${recIdx}" data-detail="${detIdx}" onclick="event.stopPropagation()"></td>
+                                    <td>${seq++}</td>
+                                    <td style="text-align:left;">${detail.productName}</td>
+                                    <td>${formatQty(detail.boxCount || 0, detail.totalPieces || 0, detail.piecesPerBox || 0)}</td>
+                                    <td>${detail.totalVolume}</td>
+                                    <td>${detail.operationTime}</td>
+                                    <td class="remark-cell" style="text-align:left; max-width:150px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${detail.remark}">${detail.remark}</td>
+                                    <td class="remark-cell" style="text-align:left; max-width:100px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${detail.remark1}">${detail.remark1}</td>
+                                    <td class="remark-cell" style="text-align:left; max-width:100px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${detail.remark2}">${detail.remark2}</td>
+                                </tr>
+                            `;
+                        });
+                    }
+                });
+                detailBody.innerHTML = detailRows || '<tr><td colspan="9" style="text-align:center;color:#9CA3AF;">暂无明细数据</td></tr>';
+            } else {
+                detailBody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#9CA3AF;">暂无明细数据</td></tr>';
+            }
+
+            // 渲染产品汇总看板
+            const summaryBody = document.getElementById('reconSummaryBody');
+            if (filtered.length > 0) {
+                const productTotals = {};
+                filtered.forEach(record => {
+                    if (record.details) {
+                        record.details.forEach(detail => {
+                            if (productSearch && !detail.productName.toLowerCase().includes(productSearch)) {
+                                return;
+                            }
+                            if (!productTotals[detail.productName]) {
+                                productTotals[detail.productName] = { fullBoxes: 0, loosePieces: 0, totalVolume: 0 };
+                            }
+                            // 散件：boxCount为0，只统计个数
+                            if (detail.boxCount === 0) {
+                                productTotals[detail.productName].loosePieces += detail.totalPieces || 0;
+                            } else {
+                                productTotals[detail.productName].fullBoxes += detail.boxCount || 0;
+                            }
+                            productTotals[detail.productName].totalVolume += detail.totalVolume || 0;
+                        });
+                    }
+                });
+
+                let seq = 1;
+                let summaryRows = '';
+                const formatQty = (fullBoxes, loosePieces) => {
+                    const boxes = fullBoxes > 0 ? fullBoxes + '箱' : '';
+                    const pieces = loosePieces > 0 ? loosePieces + '个' : '';
+                    return boxes + pieces;
+                };
+                Object.keys(productTotals).sort().forEach(name => {
+                    const data = productTotals[name];
+                    summaryRows += `
+                        <tr>
+                            <td>${seq++}</td>
+                            <td style="text-align:left;">${name}</td>
+                            <td>${formatQty(data.fullBoxes || 0, data.loosePieces || 0)}</td>
+                            <td>${data.totalVolume.toFixed(3)}</td>
+                        </tr>
+                    `;
+                });
+                summaryBody.innerHTML = summaryRows || '<tr><td colspan="4" style="text-align:center;color:#9CA3AF;">暂无汇总数据</td></tr>';
+            } else {
+                summaryBody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#9CA3AF;">暂无汇总数据</td></tr>';
+            }
+        }
+
+        function toggleSelectAllDetail(checked) {
+            document.querySelectorAll('.detail-check').forEach(cb => cb.checked = checked);
+        }
+
+        function toggleDetailRow(tr, recIdx, detIdx) {
+            const checkbox = tr.querySelector('.detail-check');
+            checkbox.checked = !checkbox.checked;
+        }
+
+        function deleteSelectedDetails() {
+            const checkedBoxes = Array.from(document.querySelectorAll('.detail-check:checked'));
+            if (checkedBoxes.length === 0) {
+                alert('请先选择要删除的记录');
+                return;
+            }
+            if (!confirm(`确定要删除选中的 ${checkedBoxes.length} 条记录吗？`)) return;
+
+            // 获取要删除的 record 和 detail 索引
+            const toDelete = [];
+            checkedBoxes.forEach(cb => {
+                toDelete.push({
+                    recordIdx: parseInt(cb.dataset.record),
+                    detailIdx: parseInt(cb.dataset.detail)
+                });
+            });
+
+            // 按 recordIdx 从大到小排序，同一个 record 内按 detailIdx 从大到小排序
+            toDelete.sort((a, b) => {
+                if (b.recordIdx !== a.recordIdx) return b.recordIdx - a.recordIdx;
+                return b.detailIdx - a.detailIdx;
+            });
+
+            // 先收集需要删除的 recordIdx
+            const recordsToDelete = new Set();
+            toDelete.forEach(({ recordIdx, detailIdx }) => {
+                if (!reconciliationData.records[recordIdx]) return;
+                const details = reconciliationData.records[recordIdx].details;
+                if (!details) return;
+                
+                // 检查这个 record 的所有 details 是否都要被删除
+                const remainingDetails = details.filter((d, i) => !toDelete.some(t => t.recordIdx === recordIdx && t.detailIdx === i));
+                if (remainingDetails.length === 0) {
+                    recordsToDelete.add(recordIdx);
+                }
+            });
+
+            // 删除整个 records（从大到小）
+            const sortedRecordIdx = Array.from(recordsToDelete).sort((a, b) => b - a);
+            sortedRecordIdx.forEach(idx => {
+                if (reconciliationData.records[idx]) {
+                    reconciliationData.records.splice(idx, 1);
+                }
+            });
+
+            // 对于没有被整体删除的 records，只删除其中的 details
+            const detailToDelete = toDelete.filter(d => !recordsToDelete.has(d.recordIdx));
+            detailToDelete.sort((a, b) => {
+                if (b.recordIdx !== a.recordIdx) return b.recordIdx - a.recordIdx;
+                return b.detailIdx - a.detailIdx;
+            });
+            detailToDelete.forEach(({ recordIdx, detailIdx }) => {
+                if (reconciliationData.records[recordIdx] && reconciliationData.records[recordIdx].details) {
+                    reconciliationData.records[recordIdx].details.splice(detailIdx, 1);
+                }
+            });
+
+            saveReconciliationData();
+            renderReconciliation();
+            alert('删除成功');
+        }
+
+        function exportReconciliation() {
+            const startDate = document.getElementById('reconStartDate').value;
+            const endDate = document.getElementById('reconEndDate').value;
+            const productSearch = document.getElementById('reconProductSearch').value.trim().toLowerCase();
+            
+            let filtered = reconciliationData.records;
+            if (startDate) {
+                filtered = filtered.filter(r => r.date >= startDate);
+            }
+            if (endDate) {
+                filtered = filtered.filter(r => r.date <= endDate);
+            }
+            
+            if (filtered.length === 0) {
+                alert('当前筛选条件下无对账记录');
+                return;
+            }
+            
+            const wb = XLSX.utils.book_new();
+            
+            // 样式定义
+            const headerFill = { bgColor: { indexed: 64 }, fgColor: { rgb: "FFB6C1" } };
+            const rowFill1 = { bgColor: { indexed: 64 }, fgColor: { rgb: "FFE4E9" } };
+            const rowFill2 = { bgColor: { indexed: 64 }, fgColor: { rgb: "FFF0F5" } };
+            const blackBorder = { top: { style: 'thin', color: { auto: 1 } }, bottom: { style: 'thin', color: { auto: 1 } }, left: { style: 'thin', color: { auto: 1 } }, right: { style: 'thin', color: { auto: 1 } } };
+            const centerAlignment = { horizontal: "center", vertical: "center" };
+            const leftAlignment = { horizontal: "left", vertical: "center" };
+            
+            // ===== Sheet1: 出货明细 =====
+            const formatQtyExport = (box, pcs) => {
+                // 散件显示个数，整箱显示箱数
+                if (box === 0 && pcs > 0) {
+                    return pcs + '个';
+                }
+                if (box > 0) {
+                    return box + '箱';
+                }
+                return '';
+            };
+            const detailHeaders = ['序号', '品名', '数量', '总体积', '操作时间', '备注', '备注1', '备注2'];
+            const detailData = [detailHeaders];
+            let seq = 1;
+            filtered.forEach(record => {
+                if (record.details) {
+                    record.details.forEach(detail => {
+                        if (productSearch && !detail.productName.toLowerCase().includes(productSearch)) return;
+                        detailData.push([seq++, detail.productName, formatQtyExport(detail.boxCount || 0, detail.totalPieces || 0), detail.totalVolume, detail.operationTime, detail.remark, detail.remark1, detail.remark2]);
+                    });
+                }
+            });
+            
+            const ws1 = XLSX.utils.aoa_to_sheet(detailData);
+            ws1['!cols'] = [{ wch: 6 }, { wch: 30 }, { wch: 12 }, { wch: 10 }, { wch: 20 }, { wch: 40 }, { wch: 15 }, { wch: 15 }];
+            
+            const range1 = XLSX.utils.decode_range(ws1['!ref']);
+            for (let R = range1.s.r; R <= range1.e.r; ++R) {
+                for (let C = range1.s.c; C <= range1.e.c; ++C) {
+                    const cellAddress = XLSX.utils.encode_cell({r: R, c: C});
+                    if (!ws1[cellAddress]) continue;
+                    if (!ws1[cellAddress].s) ws1[cellAddress].s = {};
+                    if (R === 0) {
+                        ws1[cellAddress].s.fill = headerFill;
+                        ws1[cellAddress].s.font = { bold: true, color: { rgb: "000000" } };
+                        ws1[cellAddress].s.alignment = centerAlignment;
+                        ws1[cellAddress].s.border = blackBorder;
+                    } else {
+                        ws1[cellAddress].s.fill = R % 2 === 0 ? rowFill1 : rowFill2;
+                        ws1[cellAddress].s.alignment = C === 1 || C >= 5 ? leftAlignment : centerAlignment;
+                        ws1[cellAddress].s.border = blackBorder;
+                    }
+                }
+            }
+            XLSX.utils.book_append_sheet(wb, ws1, '出货明细');
+            
+            // ===== Sheet2: 产品汇总 =====
+            const summaryHeaders = ['序号', '品名', '数量', '总体积(CBM)'];
+            const summaryData = [summaryHeaders];
+            const productTotals = {};
+            filtered.forEach(record => {
+                if (record.details) {
+                    record.details.forEach(detail => {
+                        if (productSearch && !detail.productName.toLowerCase().includes(productSearch)) return;
+                        if (!productTotals[detail.productName]) {
+                            productTotals[detail.productName] = { fullBoxes: 0, loosePieces: 0, totalVolume: 0 };
+                        }
+                        // 散件：boxCount为0
+                        if (detail.boxCount === 0) {
+                            productTotals[detail.productName].loosePieces += detail.totalPieces || 0;
+                        } else {
+                            productTotals[detail.productName].fullBoxes += detail.boxCount || 0;
+                        }
+                        productTotals[detail.productName].totalVolume += detail.totalVolume || 0;
+                    });
+                }
+            });
+            
+            seq = 1;
+            Object.keys(productTotals).sort().forEach(name => {
+                const data = productTotals[name];
+                const boxes = data.fullBoxes > 0 ? data.fullBoxes + '箱' : '';
+                const pieces = data.loosePieces > 0 ? data.loosePieces + '个' : '';
+                summaryData.push([seq++, name, boxes + pieces, data.totalVolume.toFixed(3)]);
+            });
+            
+            const ws2 = XLSX.utils.aoa_to_sheet(summaryData);
+            ws2['!cols'] = [{ wch: 6 }, { wch: 30 }, { wch: 15 }, { wch: 15 }];
+            
+            const range2 = XLSX.utils.decode_range(ws2['!ref']);
+            for (let R = range2.s.r; R <= range2.e.r; ++R) {
+                for (let C = range2.s.c; C <= range2.e.c; ++C) {
+                    const cellAddress = XLSX.utils.encode_cell({r: R, c: C});
+                    if (!ws2[cellAddress]) continue;
+                    if (!ws2[cellAddress].s) ws2[cellAddress].s = {};
+                    if (R === 0) {
+                        ws2[cellAddress].s.fill = headerFill;
+                        ws2[cellAddress].s.font = { bold: true, color: { rgb: "000000" } };
+                        ws2[cellAddress].s.alignment = centerAlignment;
+                        ws2[cellAddress].s.border = blackBorder;
+                    } else {
+                        ws2[cellAddress].s.fill = R % 2 === 0 ? rowFill1 : rowFill2;
+                        ws2[cellAddress].s.alignment = C === 1 ? leftAlignment : centerAlignment;
+                        ws2[cellAddress].s.border = blackBorder;
+                    }
+                }
+            }
+            XLSX.utils.book_append_sheet(wb, ws2, '产品汇总');
+            
+            XLSX.writeFile(wb, `出货对账_${new Date().toISOString().split('T')[0]}.xlsx`, { cellStyles: true });
+            showToast('导出成功');
+        }
+
+        function clearShipmentInput() {
+            document.getElementById('shipmentInput').value = '';
+        }
+
+        // 生成出货通知
+        function generateShipmentNotice() {
+            const selectedIds = Array.from(document.querySelectorAll('.record-checkbox:checked')).map(cb => parseInt(cb.value));
+            if (selectedIds.length === 0) { alert('请先选择要生成的订单'); return; }
+
+            const selectedRecords = shipmentData.summary.filter(record => selectedIds.includes(record.id));
+            
+            // 按备注分组，备注相同的合并成一行
+            const groupedByRemark = {};
+            selectedRecords.forEach(record => {
+                const remark = record.remark || '';
+                if (!groupedByRemark[remark]) {
+                    groupedByRemark[remark] = {
+                        remark: remark,
+                        productNames: [],
+                        totalBoxes: 0,
+                        totalPieces: 0,
+                        totalVolume: 0,
+                        piecesPerBox: 100,
+                        volumePerBox: 0.12
+                    };
+                }
+                groupedByRemark[remark].productNames.push(record.productName);
+                groupedByRemark[remark].totalBoxes += record.boxCount;
+                groupedByRemark[remark].totalPieces += record.totalPieces;
+                groupedByRemark[remark].totalVolume += record.totalVolume;
+                
+                // 从库存获取规格
+                const inventoryInfo = findInventoryByProduct(record.productName);
+                if (inventoryInfo) {
+                    groupedByRemark[remark].piecesPerBox = inventoryInfo.perBox || 100;
+                    groupedByRemark[remark].volumePerBox = inventoryInfo.cbm || 0.12;
+                }
+            });
+
+            const today = new Date().toISOString().split('T')[0];
+            
+            // 所有表格在一个页面，备注不同用分隔
+            let allTablesHtml = '';
+            
+            Object.keys(groupedByRemark).forEach((remarkKey, pageIndex) => {
+                const group = groupedByRemark[remarkKey];
+                const rowCount = group.productNames.length;
+                
+                // 不同备注之间加分隔
+                if (pageIndex > 0) {
+                    allTablesHtml += `<div style="height:30px;"></div>`;
+                }
+                
+                let tableHtml = `<table class="print-table" style="margin-bottom:10px;"><thead><tr><th>品名</th><th>Description</th><th>出货总数(pcs)</th><th>每箱数(pcs)</th><th>箱数(ctns)</th><th>每箱(CBM)</th><th>总箱(CBM)</th><th>唛头</th><th>备注</th><th>注意事项</th></tr></thead><tbody>`;
+                
+                group.productNames.forEach((productName, idx) => {
+                    const originalRecord = selectedRecords.find(r => r.productName === productName && (r.remark || '') === remarkKey);
+                    if (originalRecord) {
+                        const inventoryInfo = findInventoryByProduct(originalRecord.productName);
+                        const piecesPerBox = inventoryInfo ? (inventoryInfo.perBox || 100) : (originalRecord.piecesPerBox || 100);
+                        const volumePerBox = inventoryInfo ? (inventoryInfo.cbm || 0.12) : (originalRecord.volumePerBox || 0.12);
+                        
+                        const remarkCell = idx === 0 ? `<td rowspan="${rowCount}" class="editable-cell" data-field="remark" style="text-align:left;white-space:pre-line;vertical-align:middle;">${escapeHtml(remarkKey)}</td>` : '';
+                        
+                        tableHtml += `<tr><td>${escapeHtml(originalRecord.productName)}</td><td class="editable-cell" data-field="description"></td><td>${originalRecord.totalPieces}</td><td>${piecesPerBox}</td><td>${originalRecord.boxCount}</td><td>${volumePerBox.toFixed(3)}</td><td>${originalRecord.totalVolume.toFixed(3)}</td><td class="editable-cell" data-field="maimao"></td>${remarkCell}<td class="editable-cell" data-field="notice"></td></tr>`;
+                    }
+                });
+                
+                // 添加合计行
+                tableHtml += `<tr style="font-weight:bold;background:#FFF9C4;"><td>合计</td><td></td><td>${group.totalPieces}</td><td></td><td>${group.totalBoxes}</td><td></td><td>${group.totalVolume.toFixed(3)}</td><td></td><td></td><td></td></tr>`;
+                tableHtml += `</tbody></table>`;
+                allTablesHtml += tableHtml;
+            });
+
+            let fullHtml = `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><title>出货通知单 - ${today}</title><style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:'SimSun','Microsoft YaHei',sans-serif;font-size:14px;}.page{padding:15mm 20mm;width:297mm;height:210mm;page-break-after:always;}.page:last-child{page-break-after:auto;}.print-title{text-align:center;font-size:24px;font-weight:bold;margin-bottom:10px;}.print-info{display:flex;gap:30px;margin-bottom:15px;font-size:14px;}.print-table{width:100%;border-collapse:collapse;}.print-table th,.print-table td{border:1px solid #000;padding:6px 8px;text-align:center;}.print-table th{background:#FFF9C4!important;font-weight:bold;}.print-table td:first-child{text-align:left;white-space:nowrap;}.editable-cell{cursor:pointer;min-height:20px;}.editable-cell:hover{background:#f0f0f0;}@media print{@page{size:A4 landscape;margin:0;}.page{padding:10mm 15mm;}.print-btn{display:none;}}.print-btn{position:fixed;top:10px;right:10px;padding:10px 20px;background:#4CAF50;color:white;border:none;border-radius:4px;cursor:pointer;font-size:16px;z-index:1000;}</style></head><body><button class="print-btn" onclick="window.print()">🖨️ 打印</button>`;
+
+            fullHtml += `<div class="page"><div class="print-title">出货通知单</div><div class="print-info"><div><strong>日期：</strong>${today}</div></div>${allTablesHtml}</div>`;
+            fullHtml += `</body></html>`;
+
+            const printWindow = window.open('', '_blank', 'width=1200,height=700');
+            printWindow.document.write(fullHtml);
+            printWindow.document.close();
+            printWindow.onload = function() {
+                printWindow.document.querySelectorAll('.editable-cell').forEach(cell => {
+                    cell.addEventListener('dblclick', function() {
+                        if (this.querySelector('input')) return;
+                        const input = printWindow.document.createElement('input');
+                        const targetCell = this;
+                        input.type = 'text';
+                        input.value = targetCell.textContent;
+                        input.style.cssText = 'width:100%;border:1px solid #ddd;padding:4px;font-size:12px;';
+                        input.onblur = function() { targetCell.textContent = input.value; };
+                        input.onkeydown = function(e) { if (e.key === 'Enter') input.blur(); };
+                        targetCell.textContent = '';
+                        targetCell.appendChild(input);
+                        input.focus();
+                    });
+                });
+            };
+        }
+
+        // 初始化
+        loadShipmentData();
+        renderShipmentResults();
+        renderReconciliation();
 
     </script>
 </body>
