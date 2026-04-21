@@ -4937,73 +4937,94 @@ if (typeof XLSX === 'undefined') {
 
             const selectedRecords = shipmentData.summary.filter(record => selectedIds.includes(record.id));
             
-            // 按备注分组，备注相同的合并成一行
-            const groupedByRemark = {};
-            selectedRecords.forEach(record => {
-                const remark = record.remark || '';
-                if (!groupedByRemark[remark]) {
-                    groupedByRemark[remark] = {
-                        remark: remark,
-                        productNames: [],
-                        totalBoxes: 0,
-                        totalPieces: 0,
-                        totalVolume: 0,
-                        piecesPerBox: 100,
-                        volumePerBox: 0.12
-                    };
-                }
-                groupedByRemark[remark].productNames.push(record.productName);
-                groupedByRemark[remark].totalBoxes += record.boxCount;
-                groupedByRemark[remark].totalPieces += record.totalPieces;
-                groupedByRemark[remark].totalVolume += record.totalVolume;
-                
-                // 从库存获取规格
-                const inventoryInfo = findInventoryByProduct(record.productName);
-                if (inventoryInfo) {
-                    groupedByRemark[remark].piecesPerBox = inventoryInfo.perBox || 100;
-                    groupedByRemark[remark].volumePerBox = inventoryInfo.cbm || 0.12;
-                }
-            });
-
             const today = new Date().toISOString().split('T')[0];
             
-            // 所有表格在一个页面，备注不同用分隔
-            let allTablesHtml = '';
-            
-            Object.keys(groupedByRemark).forEach((remarkKey, pageIndex) => {
-                const group = groupedByRemark[remarkKey];
-                const rowCount = group.productNames.length;
-                
-                // 不同备注之间加分隔
-                if (pageIndex > 0) {
-                    allTablesHtml += `<div style="height:30px;"></div>`;
-                }
-                
-                let tableHtml = `<table class="print-table" style="margin-bottom:10px;"><thead><tr><th>品名</th><th>Description</th><th>出货总数(pcs)</th><th>每箱数(pcs)</th><th>箱数(ctns)</th><th>每箱(CBM)</th><th>总箱(CBM)</th><th>唛头</th><th>备注</th><th>注意事项</th></tr></thead><tbody>`;
-                
-                group.productNames.forEach((productName, idx) => {
-                    const originalRecord = selectedRecords.find(r => r.productName === productName && (r.remark || '') === remarkKey);
-                    if (originalRecord) {
-                        const inventoryInfo = findInventoryByProduct(originalRecord.productName);
-                        const piecesPerBox = inventoryInfo ? (inventoryInfo.perBox || 100) : (originalRecord.piecesPerBox || 100);
-                        const volumePerBox = inventoryInfo ? (inventoryInfo.cbm || 0.12) : (originalRecord.volumePerBox || 0.12);
-                        
-                        const remarkCell = idx === 0 ? `<td rowspan="${rowCount}" class="editable-cell" data-field="remark" style="text-align:left;white-space:pre-line;vertical-align:middle;">${escapeHtml(remarkKey)}</td>` : '';
-                        
-                        tableHtml += `<tr><td>${escapeHtml(originalRecord.productName)}</td><td class="editable-cell" data-field="description"></td><td>${originalRecord.totalPieces}</td><td>${piecesPerBox}</td><td>${originalRecord.boxCount}</td><td>${volumePerBox.toFixed(3)}</td><td>${originalRecord.totalVolume.toFixed(3)}</td><td class="editable-cell" data-field="maimao"></td>${remarkCell}<td class="editable-cell" data-field="notice"></td></tr>`;
-                    }
-                });
-                
-                // 添加合计行
-                tableHtml += `<tr style="font-weight:bold;background:#FFF9C4;"><td>合计</td><td></td><td>${group.totalPieces}</td><td></td><td>${group.totalBoxes}</td><td></td><td>${group.totalVolume.toFixed(3)}</td><td></td><td></td><td></td></tr>`;
-                tableHtml += `</tbody></table>`;
-                allTablesHtml += tableHtml;
+            // 为每条记录处理数据
+            const processedRecords = selectedRecords.map(record => {
+                const inventoryInfo = findInventoryByProduct(record.productName);
+                const piecesPerBox = inventoryInfo ? (inventoryInfo.perBox || 100) : (record.piecesPerBox || 100);
+                const volumePerBox = inventoryInfo ? (inventoryInfo.cbm || 0.12) : (record.volumePerBox || 0.12);
+                return {
+                    ...record,
+                    piecesPerBox,
+                    volumePerBox,
+                    boxCount: record.boxCount || 0,
+                    totalVolume: record.totalVolume || 0
+                };
             });
+            
+            // 按备注分组，每个不同的备注生成一个独立的出货通知单
+            const groupedByRemark = {};
+            processedRecords.forEach(record => {
+                const remarkKey = record.remark || '@@empty_remark@@';
+                if (!groupedByRemark[remarkKey]) {
+                    groupedByRemark[remarkKey] = [];
+                }
+                groupedByRemark[remarkKey].push(record);
+            });
+            
+            // 计算备注单元格的rowspan
+            function getRemarkRowSpan(records, startIndex) {
+                const remarkText = records[startIndex].remark || '';
+                let span = 1;
+                for (let i = startIndex + 1; i < records.length; i++) {
+                    if ((records[i].remark || '') === remarkText) {
+                        span++;
+                    } else {
+                        break;
+                    }
+                }
+                return span;
+            }
+            
+            // 为所有记录生成一个表格，不同地址之间用空行分隔
+            let tableHtml = `<table class="print-table"><colgroup><col style="width:auto"><col style="width:60px"><col style="width:70px"><col style="width:60px"><col style="width:50px"><col style="width:65px"><col style="width:70px"><col style="width:60px"><col style="width:200px"><col style="width:80px"></colgroup><thead><tr><th>品名</th><th>Description</th><th>出货总数(pcs)</th><th>每箱数(pcs)</th><th>箱数(ctns)</th><th>每箱(CBM)</th><th>总箱(CBM)</th><th>唛头</th><th>备注</th><th>注意事项</th></tr></thead><tbody>`;
+            const headerRow = `<tr style="background:#FFF9C4;font-weight:bold;"><td>品名</td><td>Description</td><td>出货总数(pcs)</td><td>每箱数(pcs)</td><td>箱数(ctns)</td><td>每箱(CBM)</td><td>总箱(CBM)</td><td>唛头</td><td>备注</td><td>注意事项</td></tr>`;
+            
+            let grandTotalBoxes = 0;
+            let grandTotalPieces = 0;
+            let grandTotalVolume = 0;
+            
+            // 记录上一个备注，用于判断是否需要分隔
+            let prevRemark = null;
+            let groupIndex = 0;
+            
+            Object.values(groupedByRemark).forEach(groupRecords => {
+                // 第一个组沿用thead的表头，后续组需要添加表头行
+                if (groupIndex > 0) {
+                    tableHtml += `<tr style="height:10px;"><td colspan="10" style="border:none;"></td></tr>`;
+                    tableHtml += headerRow;
+                }
+                groupIndex++;
+                
+                // 生成该组的数据行
+                for (let i = 0; i < groupRecords.length; i++) {
+                    const record = groupRecords[i];
+                    const prevRecord = i > 0 ? groupRecords[i - 1] : null;
+                    
+                    const remarkText = record.remark || '';
+                    const prevRemarkText = prevRecord ? (prevRecord.remark || '') : '';
+                    const remarkMatchesPrev = remarkText !== '' && remarkText === prevRemarkText;
+                    
+                    const remarkCell = remarkMatchesPrev 
+                        ? '' 
+                        : `<td class="editable-cell remark-cell" data-field="remark" style="text-align:left;white-space:pre-line;vertical-align:middle;font-size:13px;" rowspan="${getRemarkRowSpan(groupRecords, i)}">${escapeHtml(remarkText)}</td>`;
+                    
+                    tableHtml += `<tr><td>${escapeHtml(record.productName)}</td><td class="editable-cell" data-field="description"></td><td class="num-cell">${record.totalPieces}</td><td class="num-cell">${record.piecesPerBox}</td><td class="num-cell">${record.boxCount}</td><td class="num-cell">${record.volumePerBox.toFixed(3)}</td><td class="num-cell">${record.totalVolume.toFixed(3)}</td><td class="editable-cell" data-field="maimao"></td>${remarkCell}<td class="editable-cell" data-field="notice"></td></tr>`;
+                    
+                    grandTotalBoxes += record.boxCount;
+                    grandTotalPieces += record.totalPieces || 0;
+                    grandTotalVolume += record.totalVolume;
+                }
+            });
+            
+            // 添加合计行
+            tableHtml += `<tr style="font-weight:bold;background:#FFF9C4;"><td>合计</td><td></td><td>${grandTotalPieces}</td><td></td><td>${grandTotalBoxes}</td><td></td><td>${grandTotalVolume.toFixed(3)}</td><td></td><td></td><td></td></tr>`;
+            tableHtml += `</tbody></table>`;
+            
+            let allTablesHtml = `<div class="print-section"><div class="print-title">出货通知单</div><div class="print-info"><div><strong>日期：</strong>${today}</div></div>${tableHtml}</div>`;
 
-            let fullHtml = `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><title>出货通知单 - ${today}</title><style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:'SimSun','Microsoft YaHei',sans-serif;font-size:14px;}.page{padding:15mm 20mm;width:297mm;height:210mm;page-break-after:always;}.page:last-child{page-break-after:auto;}.print-title{text-align:center;font-size:24px;font-weight:bold;margin-bottom:10px;}.print-info{display:flex;gap:30px;margin-bottom:15px;font-size:14px;}.print-table{width:100%;border-collapse:collapse;}.print-table th,.print-table td{border:1px solid #000;padding:6px 8px;text-align:center;}.print-table th{background:#FFF9C4!important;font-weight:bold;}.print-table td:first-child{text-align:left;white-space:nowrap;}.editable-cell{cursor:pointer;min-height:20px;}.editable-cell:hover{background:#f0f0f0;}@media print{@page{size:A4 landscape;margin:0;}.page{padding:10mm 15mm;}.print-btn{display:none;}}.print-btn{position:fixed;top:10px;right:10px;padding:10px 20px;background:#4CAF50;color:white;border:none;border-radius:4px;cursor:pointer;font-size:16px;z-index:1000;}</style></head><body><button class="print-btn" onclick="window.print()">🖨️ 打印</button>`;
-
-            fullHtml += `<div class="page"><div class="print-title">出货通知单</div><div class="print-info"><div><strong>日期：</strong>${today}</div></div>${allTablesHtml}</div>`;
-            fullHtml += `</body></html>`;
+            let fullHtml = `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><title>出货通知单 - ${today}</title><style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:'SimSun','Microsoft YaHei',sans-serif;font-size:14px;}.page{padding:20mm 25mm;width:297mm;height:210mm;page-break-after:always;}.page:last-child{page-break-after:auto;}.print-section{margin-bottom:15px;}.print-title{text-align:center;font-size:24px;font-weight:bold;margin-bottom:10px;}.print-info{display:flex;gap:30px;margin-bottom:15px;font-size:14px;}.print-table{width:100%;border-collapse:collapse;}.print-table th,.print-table td{border:1px solid #000;padding:4px;text-align:center;}.print-table th{background:#FFF9C4!important;font-weight:bold;}.print-table td:first-child{text-align:left;white-space:nowrap;}.editable-cell{cursor:pointer;min-height:20px;}.editable-cell:hover{background:#f0f0f0;}.num-cell{padding:4px 6px!important;font-size:13px;}.remark-cell{padding:8px 10px!important;}@media print{@page{size:A4 landscape;margin:15mm;}.page{padding:10mm 15mm;}.print-btn{display:none;}}.print-btn{position:fixed;top:10px;right:10px;padding:10px 20px;background:#4CAF50;color:white;border:none;border-radius:4px;cursor:pointer;font-size:16px;z-index:1000;}</style></head><body><button class="print-btn" onclick="window.print()">🖨️ 打印</button>${allTablesHtml}</body></html>`;
 
             const printWindow = window.open('', '_blank', 'width=1200,height=700');
             printWindow.document.write(fullHtml);
