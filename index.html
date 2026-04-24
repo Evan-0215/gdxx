@@ -4997,6 +4997,11 @@ if (typeof XLSX === 'undefined') {
                 }
                 groupIndex++;
                 
+                // 组内合计变量
+                let groupTotalBoxes = 0;
+                let groupTotalPieces = 0;
+                let groupTotalVolume = 0;
+                
                 // 生成该组的数据行
                 for (let i = 0; i < groupRecords.length; i++) {
                     const record = groupRecords[i];
@@ -5012,14 +5017,18 @@ if (typeof XLSX === 'undefined') {
                     
                     tableHtml += `<tr><td>${escapeHtml(record.productName)}</td><td class="editable-cell" data-field="description"></td><td class="num-cell">${record.totalPieces}</td><td class="num-cell">${record.piecesPerBox}</td><td class="num-cell">${record.boxCount}</td><td class="num-cell">${record.volumePerBox.toFixed(3)}</td><td class="num-cell">${record.totalVolume.toFixed(3)}</td><td class="editable-cell" data-field="maimao"></td>${remarkCell}<td class="editable-cell" data-field="notice"></td></tr>`;
                     
+                    groupTotalBoxes += record.boxCount;
+                    groupTotalPieces += record.totalPieces || 0;
+                    groupTotalVolume += record.totalVolume;
                     grandTotalBoxes += record.boxCount;
                     grandTotalPieces += record.totalPieces || 0;
                     grandTotalVolume += record.totalVolume;
                 }
+                
+                // 添加该组的合计行
+                tableHtml += `<tr style="font-weight:bold;background:#FFF9C4;"><td>合计</td><td></td><td>${groupTotalPieces}</td><td></td><td>${groupTotalBoxes}</td><td></td><td>${groupTotalVolume.toFixed(3)}</td><td></td><td></td><td></td></tr>`;
             });
             
-            // 添加合计行
-            tableHtml += `<tr style="font-weight:bold;background:#FFF9C4;"><td>合计</td><td></td><td>${grandTotalPieces}</td><td></td><td>${grandTotalBoxes}</td><td></td><td>${grandTotalVolume.toFixed(3)}</td><td></td><td></td><td></td></tr>`;
             tableHtml += `</tbody></table>`;
             
             let allTablesHtml = `<div class="print-section"><div class="print-title">出货通知单</div><div class="print-info"><div><strong>日期：</strong>${today}</div></div>${tableHtml}</div>`;
